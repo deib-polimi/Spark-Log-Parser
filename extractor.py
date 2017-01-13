@@ -1,16 +1,18 @@
 from __future__ import division
 import os
 import csv
+import sys
 
 class Extractor:
-    def __init__(self, stagesFile,targetDirectory):
-        self.targetDirectory= targetDirectory
+    def __init__(self, jobsFile, stagesFile):
         self.stagesFile = stagesFile
+        self.stagesRows = None
+        self.targetDict = []
 
 
-    def run():
-        self.fileValidation(stagesFile)
-        f = open(stagesFile, "r")
+    def run(self):
+        self.fileValidation(self.stagesFile)
+        f = open(self.stagesFile, "r")
         self.stagesRows = self.orderStages(csv.DictReader(f))
         f.close()
         self.buildTimeFiles()
@@ -31,17 +33,22 @@ class Extractor:
         normalBatch = []
         targetDictList = []
         for item in batch:
-            if item[1] == "Result Task":
+            if item[1] == "ResultTask":
                 normalBatch.append(int(item[0]))
             else:
                 shuffleBatch.append(int(item[0]))
 
+        if(len(shuffleBatch)==0):
+            shuffleBatch.append(-1)
+        if(len(normalBatch)==0):
+            normalBatch.append(-1)
         maxTask = max(normalBatch)
         maxShuffle = max(shuffleBatch)
         avgTask = reduce(lambda x, y: x + y, normalBatch) / len(normalBatch)
         avgShuffle = reduce(lambda x, y: x + y, shuffleBatch) / len(shuffleBatch)
         targetDictList.append({
             stageId : {
+                "numTask" : len(batch)
                 "maxTask" : maxTask,
                 "avgTask" : avgTask,
                 "maxShuffle" : maxShuffle,
@@ -55,10 +62,13 @@ class Extractor:
         lastRow = None
         for row in self.stagesRows:
             if((lastRow != None and lastRow["Stage ID"] != row["Stage ID"])):
-                print(computeIndexes(lastRow["Stage ID"],batch))
+                self.targetDict.append(self.computeIndexes(lastRow["Stage ID"],batch))
                 batch = []
             batch.append([row["Executor Run Time"],row["Task Type"]])
             lastRow = row
+        self.targetDict = self.targetDict.append(self.computeIndexes(lastRow["Stage ID"],batch))
+        batch = []
+        print(self.targetDict)
 
 def main():
     args = sys.argv
