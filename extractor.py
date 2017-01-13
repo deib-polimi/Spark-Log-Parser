@@ -5,10 +5,40 @@ import sys
 
 class Extractor:
     def __init__(self, jobsFile, stagesFile):
+        self.targetDirectory= './'
+        self.jobsFile = jobsFile
         self.stagesFile = stagesFile
         self.stagesRows = None
-        self.targetDict = []
+        self.targetList = []
+        self.completionStage = []
 
+    def stageCompletion(self):
+        f = open(self.jobsFile, "r")
+        stages = csv.DictReader(f)
+        for item in stages:
+            self.completionStage.append({
+                "stageId": item["Stage ID"],
+                "completionTime" : item["Completion Time"]
+            })
+
+    def mergeList(self):
+        targetList = []
+        z = {}
+        for item in self.completionStage:
+            for sub_item in self.targetList:
+                if(item["stageId"] == sub_item["stageId"]):
+                    z = sub_item.copy()
+                    z["completionTime"] = item["completionTime"]
+                    targetList.append(z)
+        return targetList
+
+    def produceFile(self,list):
+        f = open(self.targetDirectory+'summary.csv','w')
+        headers = list[0].keys()
+        writer = csv.writer(f, delimiter=',', lineterminator='\n')
+        writer.writerow(headers)
+        for item in list:
+            writer.writerow(item.values())
 
     def run(self):
         self.fileValidation(self.stagesFile)
@@ -16,6 +46,8 @@ class Extractor:
         self.stagesRows = self.orderStages(csv.DictReader(f))
         f.close()
         self.buildTimeFiles()
+        self.stageCompletion()
+        self.produceFile(self.mergeList())
 
     """Checks the existence of the given file path"""
     def fileValidation(self,filename):
@@ -31,7 +63,6 @@ class Extractor:
     def computeIndexes(self,stageId,batch):
         shuffleBatch = []
         normalBatch = []
-        targetDictList = []
         for item in batch:
             if item[1] == "ResultTask":
                 normalBatch.append(int(item[0]))
@@ -46,29 +77,26 @@ class Extractor:
         maxShuffle = max(shuffleBatch)
         avgTask = reduce(lambda x, y: x + y, normalBatch) / len(normalBatch)
         avgShuffle = reduce(lambda x, y: x + y, shuffleBatch) / len(shuffleBatch)
-        targetDictList.append({
-            stageId : {
-                "numTask" : len(batch)
-                "maxTask" : maxTask,
-                "avgTask" : avgTask,
-                "maxShuffle" : maxShuffle,
-                "avgShuffle" : avgShuffle
-            }
+        return ({
+            "stageId" : stageId,
+            "numTask" : len(batch),
+            "maxTask" : maxTask,
+            "avgTask" : avgTask,
+            "maxShuffle" : maxShuffle,
+            "avgShuffle" : avgShuffle
         })
-        return targetDictList
 
     def buildTimeFiles(self):
         batch = []
         lastRow = None
         for row in self.stagesRows:
             if((lastRow != None and lastRow["Stage ID"] != row["Stage ID"])):
-                self.targetDict.append(self.computeIndexes(lastRow["Stage ID"],batch))
+                self.targetList.append(self.computeIndexes(lastRow["Stage ID"],batch))
                 batch = []
             batch.append([row["Executor Run Time"],row["Task Type"]])
             lastRow = row
-        self.targetDict = self.targetDict.append(self.computeIndexes(lastRow["Stage ID"],batch))
+        self.targetList.append(self.computeIndexes(lastRow["Stage ID"],batch))
         batch = []
-        print(self.targetDict)
 
 def main():
     args = sys.argv
