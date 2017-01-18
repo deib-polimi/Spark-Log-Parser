@@ -16,7 +16,6 @@ class Extractor:
         self.target_directory = target_directory
         self.stagesRows = None
         self.stagesTasksList = []
-        self.stagesCompletionList = []
         self.jobsList = []
         self.maxStagesLenght = 0
         self.headerFlag = headerFlag
@@ -56,7 +55,7 @@ class Extractor:
             self.maxStagesLenght = max_
         return targetList
 
-    def produce_final_list(self): 
+    def produce_final_list(self):
         final_list = []
         tmp_list = []
         for job in self.jobsList:
