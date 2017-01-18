@@ -25,7 +25,7 @@ class Extractor:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             targetHeaders = []
             jobHeaders = ['run', 'jobId', 'CompletionTime']
-            stageHeaders = ['stageId', 'nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
+            stageHeaders = ['nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
             terminalHeaders = ['users', 'dataSize', 'nContainers']
             targetHeaders += jobHeaders
             for i in range(0, self.maxStagesLenght):
@@ -64,7 +64,7 @@ class Extractor:
             tmp_list.append(job[1])
             for stageItem in self.stagesTasksList:
                 if stageItem["stageId"] in job[2]:
-                    tmp_list = tmp_list + stageItem.values()
+                    tmp_list = tmp_list + stageItem.values()[1:]
             tmp_list.append(self.users)
             tmp_list.append(self.memory)
             tmp_list.append(self.containers)
