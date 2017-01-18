@@ -4,6 +4,7 @@ import os
 import csv
 import sys
 
+
 class Extractor:
     def __init__(self, directory, target_directory, users, memory, containers):
         self.containers = containers
@@ -11,58 +12,68 @@ class Extractor:
         self.memory = memory
         self.directory = directory
         self.directoryName = os.path.basename(directory)
-        self.directoryName = self.directoryName[:len(self.directoryName)-4]
+        self.directoryName = self.directoryName[:len(self.directoryName) - 4]
         self.target_directory = target_directory
         self.stagesRows = None
         self.stagesTasksList = []
         self.stagesCompletionList = []
+        self.jobsList = []
+        self.maxStagesLenght = 0
 
-    def buildstagesCompletionList(self, file_):
-        f = open(file_, "r")
-        stages = csv.DictReader(f)
-        for item in stages:
-            self.stagesCompletionList.append({
-                "completionTime": int(item["Completion Time"]) - int(item["Submission Time"]),
-                "stageId": item["Stage ID"]
-            })
-
-    def mergeList(self):
-        targetList = []
-        z = []
-        for item in self.stagesCompletionList:
-            for sub_item in self.stagesTasksList:
-                if item["stageId"] == sub_item["stageId"]:
-                    z.append(self.directoryName)
-                    z.append(sub_item["stageId"])
-                    z.append(str(item["completionTime"]))
-                    z = z + sub_item.values()
-                    del z[3]
-                    z.append(self.users)
-                    z.append(self.memory)
-                    z.append(self.containers)
-                    targetList.append(z)
-                    z = []
-        return sorted(targetList, key=lambda x:x[1])
+    def writeHeader(self):
+        with open(self.target_directory + '/summary.csv', 'a') as f:
+            writer = csv.writer(f, delimiter=',', lineterminator='\n')
+            targetHeaders = []
+            jobHeaders = ['run', 'jobId', 'CompletionTime']
+            stageHeaders = ['stageId', 'nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
+            terminalHeaders = ['users', 'dataSize', 'nContainers']
+            targetHeaders.append(jobHeaders)
+            for i in range(0, self.maxStagesLenght):
+                targetHeaders.append(stageHeaders)
+            targetHeaders.append(terminalHeaders)
+            writer.writerow(targetHeaders)
 
     def produceFile(self, finalList):
-        f = open(self.target_directory + '/summary.csv', 'a')
-        writer = csv.writer(f, delimiter=',', lineterminator='\n')
-        for item in finalList:
-            writer.writerow(item)
+        with open(self.target_directory + '/summary.csv', 'a') as f:
+            writer = csv.writer(f, delimiter=',', lineterminator='\n')
+            for item in finalList:
+                writer.writerow(item)
 
+    def retrieve_jobs(self, jobs_file):
+        with open(jobs_file, "r") as f:
+            targetList = []
+            jobs_rows = sorted(csv.DictReader(f), key=lambda x: x["Job ID"])
+            i = 0
+            max = 0
+            while i < len(jobs_rows):
+                completionTime = int(jobs_rows[i + 1]["Completion Time"]) - int(jobs_rows[i]["Submission Time"])
+                stages = jobs_rows[i]["Stage IDs"][1:(len(jobs_rows[i]["Stage IDs"]) - 1)].split(", ")
+                if max < len(stages):
+                    max = len(stages)
+                targetList.append([jobs_rows["Job ID"], completionTime, stages])
+            self.maxStagesLenght = max
+        return targetList
+
+    def produce_final_list(self):
+        final_list = []
+        tmp_list = []
+        for job in self.jobsList:
+            tmp_list.append(job[0])
+            tmp_list.append(job[1])
+            for stageItem in self.stagesTasksList:
+                if stageItem["Stage ID"] in job[2]:
+                    tmp_list = tmp_list + stageItem
+            tmp
+        return final_list
 
     def run(self):
         tasks_file = self.directory + "/tasks_1.csv"
-        stages_file = self.directory + "/stages_1.csv"
-        f = open(tasks_file, "r")
-        self.stagesRows = self.orderStages(csv.DictReader(f))
-        f.close()
+        jobs_file = self.directory + "/jobs_1.csv"
+        with open(tasks_file, "r") as f:
+            self.stagesRows = self.orderStages(csv.DictReader(f))
+        self.jobsList = self.retrieve_jobs(jobs_file)
         self.buildstagesTasksList()
-        self.buildstagesCompletionList(stages_file)
-        self.produceFile(self.mergeList())
-
-
-
+        self.produceFile(self.produce_final_list())
 
     """Checks the existence of the given file path"""
 
@@ -111,7 +122,8 @@ class Extractor:
             if row["Shuffle Write Time"] == "NOVAL":
                 batch.append([int(row["Executor Run Time"]), -1, -1])
             else:
-                batch.append([int(row["Executor Run Time"]), int(row["Shuffle Write Time"]), int(row["Shuffle Bytes Written"])])
+                batch.append(
+                    [int(row["Executor Run Time"]), int(row["Shuffle Write Time"]), int(row["Shuffle Bytes Written"])])
 
             lastRow = row
         self.stagesTasksList.append(self.computeStagesTasksDetails(lastRow["Stage ID"], batch))
