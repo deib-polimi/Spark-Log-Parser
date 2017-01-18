@@ -47,15 +47,21 @@ function secondLevelDirTraversal {
 function thirdLevelDirTraversal {
     #REGEX="application_[0-9]\+_[0-9]\+_dir" Azure version
     REGEX="app-[0-9]\+-[0-9]\+_csv" #Cineca version
+    HEADER_FLAG="True"
+    INDEX=0
     if [[ -f $1/summary.csv ]]
     then
         rm $1/summary.csv
     fi
     touch $1/summary.csv
-    echo "Run,stageId,CompletionTime,nTask,maxTask,avgTask,SHmax,SHavg,Bmax,Bavg,users,dataSize,nContainers" >> $1/summary.csv
     for item in $(echo $1/* | grep -o ${REGEX})
     do
-        python extractor.py $1/${item} $1 $(extractUsers $2) $(extractDataSize $2) $(extractCores $2)
+        if [ ${INDEX} -eq 1 ]
+        then
+            HEADER_FLAG="False"
+        fi
+        INDEX=$((${INDEX}+1))
+        python extractor.py $1/${item} $1 $(extractUsers $2) $(extractDataSize $2) $(extractCores $2) ${HEADER_FLAG}
     done
 
 }
@@ -69,9 +75,9 @@ function InputCheckAndRun {
 
 }
 
-if [ $# -ne 2 ]
+if [ $# -ne 1 ]
 then
-  echo "Error: usage is [ROOT_DIRECTORY] [N_USERS]"
+  echo "Error: usage is [ROOT_DIRECTORY]"
   exit -1;
 fi
 InputCheckAndRun $1

@@ -6,7 +6,7 @@ import sys
 
 
 class Extractor:
-    def __init__(self, directory, target_directory, users, memory, containers):
+    def __init__(self, directory, target_directory, users, memory, containers, headerFlag):
         self.containers = containers
         self.users = users
         self.memory = memory
@@ -19,6 +19,7 @@ class Extractor:
         self.stagesCompletionList = []
         self.jobsList = []
         self.maxStagesLenght = 0
+        self.headerFlag = headerFlag
 
     def writeHeader(self):
         with open(self.target_directory + '/summary.csv', 'a') as f:
@@ -27,10 +28,10 @@ class Extractor:
             jobHeaders = ['run', 'jobId', 'CompletionTime']
             stageHeaders = ['stageId', 'nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
             terminalHeaders = ['users', 'dataSize', 'nContainers']
-            targetHeaders.append(jobHeaders)
+            targetHeaders += jobHeaders
             for i in range(0, self.maxStagesLenght):
-                targetHeaders.append(stageHeaders)
-            targetHeaders.append(terminalHeaders)
+                targetHeaders += stageHeaders
+            targetHeaders += terminalHeaders
             writer.writerow(targetHeaders)
 
     def produceFile(self, finalList):
@@ -44,26 +45,32 @@ class Extractor:
             targetList = []
             jobs_rows = sorted(csv.DictReader(f), key=lambda x: x["Job ID"])
             i = 0
-            max = 0
+            max_ = 0
             while i < len(jobs_rows):
                 completionTime = int(jobs_rows[i + 1]["Completion Time"]) - int(jobs_rows[i]["Submission Time"])
                 stages = jobs_rows[i]["Stage IDs"][1:(len(jobs_rows[i]["Stage IDs"]) - 1)].split(", ")
-                if max < len(stages):
-                    max = len(stages)
-                targetList.append([jobs_rows["Job ID"], completionTime, stages])
-            self.maxStagesLenght = max
+                if max_ < len(stages):
+                    max_ = len(stages)
+                targetList.append([jobs_rows[i]["Job ID"], completionTime, stages])
+                i += 2
+            self.maxStagesLenght = max_
         return targetList
 
-    def produce_final_list(self):
+    def produce_final_list(self): 
         final_list = []
         tmp_list = []
         for job in self.jobsList:
+            tmp_list.append(self.directoryName)
             tmp_list.append(job[0])
             tmp_list.append(job[1])
             for stageItem in self.stagesTasksList:
-                if stageItem["Stage ID"] in job[2]:
-                    tmp_list = tmp_list + stageItem
-            tmp
+                if stageItem["stageId"] in job[2]:
+                    tmp_list = tmp_list + stageItem.values()
+            tmp_list.append(self.users)
+            tmp_list.append(self.memory)
+            tmp_list.append(self.containers)
+            final_list.append(tmp_list)
+            tmp_list = []
         return final_list
 
     def run(self):
@@ -72,6 +79,8 @@ class Extractor:
         with open(tasks_file, "r") as f:
             self.stagesRows = self.orderStages(csv.DictReader(f))
         self.jobsList = self.retrieve_jobs(jobs_file)
+        if self.headerFlag == 'True':
+            self.writeHeader()
         self.buildstagesTasksList()
         self.produceFile(self.produce_final_list())
 
@@ -131,11 +140,11 @@ class Extractor:
 
 def main():
     args = sys.argv
-    if len(args) != 6:
+    if len(args) != 7:
         print("Required args: [TOP_DIRECTORY] [TARGET_DIRECTORY]")
         exit(-1)
     else:
-        extractor = Extractor(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]))
+        extractor = Extractor(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]),str(args[6]))
         extractor.run()
 
 
