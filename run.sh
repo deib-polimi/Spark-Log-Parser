@@ -1,5 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
+## Copyright 2017 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ## Copyright 2016 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,146 +15,139 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
-source ./config.sh
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do
+    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+    SOURCE="$(readlink "$SOURCE")"
+    [ "${SOURCE:0:1}" != / ] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-function extractAll {
-    #NONZIP_REGEX="application_[0-9]\+_[0-9]\+" Azure version
-    NONZIP_REGEX="app-[0-9]\+-[0-9]\+" #Cineca version
-    FILENAME=""
-    for item in $1/*.zip
-    do
-        if [[ -f ${item} ]]
-        then
-            FILENAME=$(echo ${item} | grep -o ${NONZIP_REGEX})
-            CONTAINERS=$(getCores $2)
-            echo ${FILENAME}","$(extractConfiguaration $2) >> $3/ubertable.csv
-            #DIRECTORY=$1/${FILENAME}_dir Azure version
-            DIRECTORY=$1/${FILENAME}_csv #Cineca version
-            unzip ${item} -d $1
-            mkdir ${DIRECTORY}
-            python parser.py $1/${FILENAME} 1 ${DIRECTORY}
-            buildLuaFile ${DIRECTORY} ${FILENAME} ${CONTAINERS}
-        fi
+set -a
+. "$DIR"/config.sh
+set +a
+
+NONZIP_REGEX='app(lication)?-[0-9]+-[0-9]+'
+
+error_aux ()
+{
+    echo $0: $1: ${@:2} >&2
+    exit 1
+}
+alias error='error_aux $LINENO '
+
+parse_configuration ()
+{
+    EXPERIMENT=$(echo $1 | tr / '\n' | grep -E '[0-9]+_[0-9]+_[0-9]+G_[0-9]+')
+    EXECUTORS=$(echo $EXPERIMENT | awk -F _ '{ print $1 }')
+    CORES=$(echo $EXPERIMENT | awk -F _ '{ print $2 }')
+    MEMORY=$(echo $EXPERIMENT | awk -F _ '{ print $3 }')
+    DATASIZE=$(echo $EXPERIMENT | awk -F _ '{ print $4 }')
+    TOTAL_CORES=$(expr $EXECUTORS \* $CORES)
+}
+
+build_lua_file ()
+{
+    reldir="$1"
+    app_id="$2"
+    cores="$3"
+    absdir="$(pwd)/$reldir"
+
+    STAGES=$(python "$DIR"/automate.py "$absdir/jobs_1.csv" \
+                    "$absdir/tasks_1.csv" "$absdir/stages_1.csv" "$absdir")
+    DAGSIM_STAGES="$STAGES" python "$DIR"/lua_file_builder.py "$reldir" "$app_id" "$cores"
+}
+
+process_data ()
+{
+    root="$1"
+
+    find -E "$root" -regex '.*'/"$NONZIP_REGEX".zip -execdir unzip '{}' \;
+
+    find -E "$root" -regex '.*'/"$NONZIP_REGEX" | while read -r filename; do
+        app_id=$(echo $filename | grep -o -E "$NONZIP_REGEX")
+
+        parse_configuration "$filename"
+        echo $app_id, $EXECUTORS, $TOTAL_CORES, $MEMORY, $DATASIZE \
+             >> "$root/ubertable.csv"
+
+        dir="$(dirname "$filename")"
+        newdir="$dir/${app_id}_csv"
+        mkdir -p "$newdir"
+
+        python "$DIR"/parser.py "$dir/$app_id" 1 "$newdir"
+        build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
     done
 }
-function getCores {
-    EXECUTORS=$(echo $1 | awk '{split($0,a,"_"); print a[1]}')
-    CORES_EXEC=$(echo $1 | awk '{split($0,a,"_"); print a[2]}')
-    echo $((${EXECUTORS}*${CORES_EXEC}))
-}
-function extractConfiguaration {
-    EXECUTORS=$(echo $1 | awk '{split($0,a,"_"); print a[1]}')
-    CORES_EXEC=$(echo $1 | awk '{split($0,a,"_"); print a[2]}')
-    MEM=$(echo $1 | awk '{split($0,a,"_"); print a[3]}')
-    DATASIZE=$(echo $1 | awk '{split($0,a,"_"); print a[4]}')
-    echo ${EXECUTORS}","$((${EXECUTORS}*${CORES_EXEC}))","${MEM}","${DATASIZE}
-}
-function dagsimAll {
-    #DIR_REGEX="application_[0-9]\+_[0-9]\+_dir" Azure version
-    DIR_REGEX="app-[0-9]\+-[0-9]\+_csv" #Cineca version
-    VALID_DIRS=$(echo $1/* | grep -o ${DIR_REGEX})
-    TMP=""
-    if [[ -f $1/simulation.csv ]]
-    then
-        rm $1/simulation.csv
-    fi
-    touch $1/simulation.csv
-    echo "RUN,SIMRESULT" >> $1/simulation.csv
-    PWD_FILTER=$(pwd | grep -o "DagSim")
-    if [ ${#PWD_FILTER} -eq 0 ]
-    then
-        cd ./DagSim/ || exit -1
-    fi
-    for dir in ${VALID_DIRS}
-    do
-        FILENAME=$(echo ${dir} | sed s/_csv// ) #Cineca version
-        #FILENAME=$(echo ${dir} | sed s/_dir// ) Azure version
-        DIR=$1/${dir}
-        if [[ -f ${DIR}/out.txt ]]
-        then
-            rm ${DIR}/out.txt
-        fi
-        echo "Simulating ${FILENAME}"
-        ./dagSim ${DIR}/${FILENAME}".lua" > ${DIR}/out.txt
-        TMP=$(awk '{print $3}' ${DIR}/out.txt | sed -n '1 p' )
-        echo ${FILENAME}", "${TMP} >> $1/simulation.csv
-        echo "Finished"
-    done
 
-}
-function buildLuaFile {
-  export DAGSIM_STAGES=$(python automate.py $1'/jobs_1.csv' $1'/tasks_1.csv' $1'/stages_1.csv' $1)
-  python lua_file_builder.py $1 $2 $3
-}
-function firstLevelDirTraversal {
-    # $1 ->Upper directory $2 -> #Depth $3 -> mode
-    if [ $2 -eq 2 ]
-    then
-        secondLevelDirTraversal $1/logs $3 $4 $5
-    else
-    for item in $1/*
-    do
-        if [[ -d ${item} ]]
-        then
-            if [ $2 -eq 0 ]
-            then
-                firstLevelDirTraversal ${item} $(( $2 + 1)) $3 $(basename ${item}) $5
-            else
-                firstLevelDirTraversal ${item} $(( $2 + 1)) $3 $4 $5
-            fi
-        fi
-    done
-    fi
-}
-function secondLevelDirTraversal {
+simulate_all ()
+{
+    root="$1"
 
-    for item in $1/*
-    do
-        if [[ -d ${item} ]]
-        then
-            thirdLevelDirTraversal ${item} $2 $3 $4
-        fi
+    results_file="$root/simulations.csv"
+    echo Experiment, Run, Sim Result > "$results_file"
+
+    dir_regex='.*'/"$NONZIP_REGEX"_csv
+    find -E "$1" -regex "$dir_regex" | while read -r dir; do
+        path="$(echo $dir | sed s/_csv//)"
+        filename="$(basename "$path")"
+
+        absdir="$(cd -P "$dir" && pwd)"
+        outfile="$absdir/tmp.txt"
+        trap "rm -f \'$outfile\'; exit -1" INT TERM
+
+        echo Simulating $filename
+        cd "$DAGSIM_DIR"
+        ./dagSim "$absdir/$filename.lua" > "$outfile"
+        cd -
+
+        result=$(cat "$outfile" | grep '^0' | cut -f 2- | grep '^0' | cut -f 2)
+        rm "$outfile"
+
+        parse_configuration "$dir"
+        echo $EXPERIMENT, $filename, $result >> "$results_file"
+        echo Finished
     done
 }
-function thirdLevelDirTraversal {
-    if [ $2 -eq 0 ]
-    then
-        extractAll $1 $3 $4
-    elif [ $2 -eq 1 ]
-    then
-        dagsimAll $1
-    else
-        extractAll $1 $3 $4
-        dagsimAll $1
-        cd ../ || exit -1
-    fi
 
-}
-function InputCheckAndRun {
-    if ! [[ -d $1 ]]
-    then
-        echo "Error: the directory inserted does not exist"
-        exit -1;
-    fi
-    if [ $2 -gt -1 ] && [ $2 -lt 3 ]
-    then
-        if [[ -f $1/ubertable.csv ]]
-        then
-            rm $1/ubertable.csv
-        fi
-        touch $1/ubertable.csv
-        echo "RUN,EXECUTORS,TOTCORES,MEM,DATASIZE" >> $1/ubertable.csv
-        firstLevelDirTraversal $1 0 $2 "_" $1
-    else
-    echo "Error: usage is [ROOT_DIRECTORY] [MODE], where MODE must be in (0|1|2), 0 -> sym only, 1 -> extract only, 2 both"
-      exit -1;
-    fi
+usage ()
+{
+    echo $0: usage is [ROOT_DIRECTORY] [MODE], where MODE must be in \
+         '(0|1|2)', 0 '->' extract only, 1 '->' simulate only, 2 both >&2
+    exit 2
 }
 
-if [ $# -ne 2 ]
-then
-  echo "Error: usage is [ROOT_DIRECTORY] [MODE], where MODE must be in (0|1|2), 0 -> sym only, 1 -> extract only, 2 both"
-  exit -1;
+isnumber ()
+{
+    test "$1" && printf '%d' "$1" > /dev/null 2>&1
+}
+
+if [ $# -ne 2 ]; then
+    usage
 fi
-InputCheckAndRun $1 $2
 
+if [ ! -d "$1" ]; then
+    error the inserted directory does not exist
+fi
+
+if ! isnumber "$2"; then
+    usage
+fi
+
+if [ "$2" -gt -1 ] && [ "$2" -lt 3 ]; then
+    echo Run, Executors, Total Cores, Memory, Datasize > "$1/ubertable.csv"
+    case "$2" in
+        0)
+            process_data "$1"
+            ;;
+        1)
+            simulate_all "$1"
+            ;;
+        2)
+            process_data "$1"
+            simulate_all "$1"
+            ;;
+    esac
+else
+    usage
+fi
