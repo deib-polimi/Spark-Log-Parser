@@ -1,5 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
+## Copyright 2017 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ## Copyright 2017 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,84 +15,89 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
-function extractDataSize {
-    DATASIZE=$(echo $1 | awk '{split($0,a,"_"); print a[4]}')
-    echo ${DATASIZE}
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do
+    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+    SOURCE="$(readlink "$SOURCE")"
+    [ "${SOURCE:0:1}" != / ] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
+REGEX='app(lication)?-[0-9]+-[0-9]+'
+
+error_aux ()
+{
+    echo $0: $1: ${@:2} >&2
+    exit 1
+}
+alias error='error_aux $LINENO '
+
+usage ()
+{
+    echo $(basename "$0") [-u number] directory >&2
+    echo '    summarize the data in directory' >&2
+    echo '    you can provide the number of users with -u, the default is 1' >&2
+    exit 2
 }
 
-function extractCores {
-    EXECUTORS=$(echo $1 | awk '{split($0,a,"_"); print a[1]}')
-    CORES_EXEC=$(echo $1 | awk '{split($0,a,"_"); print a[2]}')
-    echo $((${EXECUTORS}*${CORES_EXEC}))
+while getopts :u: opt; do
+    case "$opt" in
+        u)
+            users="$OPTARG"
+            ;;
+        \?)
+            error unrecognized option -$OPTARG
+            ;;
+        :)
+            error -$OPTARG option requires an argument
+            ;;
+    esac
+done
+shift $(expr $OPTIND - 1)
+
+
+parse_configuration ()
+{
+    EXPERIMENT=$(echo $1 | tr / '\n' | grep -E '[0-9]+_[0-9]+_[0-9]+G_[0-9]+')
+    EXECUTORS=$(echo $EXPERIMENT | awk -F _ '{ print $1 }')
+    CORES=$(echo $EXPERIMENT | awk -F _ '{ print $2 }')
+    MEMORY=$(echo $EXPERIMENT | awk -F _ '{ print $3 }')
+    DATASIZE=$(echo $EXPERIMENT | awk -F _ '{ print $4 }')
+    TOTAL_CORES=$(expr $EXECUTORS \* $CORES)
 }
-function extractUsers {
-    USERS=$(echo $1 | awk '{split($0,a,"_"); print a[1]}')
-    echo ${USERS}
-}
-function firstLevelDirTraversal {
-    # $1 ->Upper directory $2 -> #Depth $3 -> mode
-    if [ $2 -eq 2 ]
-    then
-        secondLevelDirTraversal $1/logs $3
-    else
-    for item in $1/*
-    do
-        if [[ -d ${item} ]]
-        then
-            if [ $2 -eq 0 ]
-            then
-                firstLevelDirTraversal ${item} $(( $2 + 1)) $(basename ${item})
-            else
-                firstLevelDirTraversal ${item} $(( $2 + 1)) $3
-            fi
-        fi
+
+process_data ()
+{
+    root="$1"
+
+    outfile="$root/summary.csv"
+    : > "$outfile"
+
+    header=True
+    find -E "$root" -regex '.*'/"$REGEX"_csv | while read -r dir; do
+        parse_configuration "$dir"
+        python "$DIR/extractor.py" "$dir" "$outfile" "$USERS" \
+               "$DATASIZE" "$TOTAL_CORES" "$header" && header=False
     done
-    fi
-}
-function secondLevelDirTraversal {
-
-    for item in $1/*
-    do
-        if [[ -d ${item} ]]
-        then
-            thirdLevelDirTraversal ${item} $2
-        fi
-    done
-}
-function thirdLevelDirTraversal {
-    #REGEX="application_[0-9]\+_[0-9]\+_dir" Azure version
-    REGEX="app-[0-9]\+-[0-9]\+_csv" #Cineca version
-    HEADER_FLAG="True"
-    INDEX=0
-    if [[ -f $1/summary.csv ]]
-    then
-        rm $1/summary.csv
-    fi
-    touch $1/summary.csv
-    for item in $(echo $1/* | grep -o ${REGEX})
-    do
-        if [ ${INDEX} -eq 1 ]
-        then
-            HEADER_FLAG="False"
-        fi
-        INDEX=$((${INDEX}+1))
-        python extractor.py $1/${item} $1 $(extractUsers $2) $(extractDataSize $2) $(extractCores $2) ${HEADER_FLAG}
-    done
-
-}
-function InputCheckAndRun {
-    if ! [[ -d $1 ]]
-    then
-        echo "Error: the directory inserted does not exist"
-        exit -1;
-    fi
-    firstLevelDirTraversal $1 0 _
-
 }
 
-if [ $# -ne 1 ]
-then
-  echo "Error: usage is [ROOT_DIRECTORY]"
-  exit -1;
+isnumber ()
+{
+    test "$1" && printf '%d' "$1" > /dev/null 2>&1
+}
+
+
+if [ $# -ne 1 ]; then
+    usage
 fi
-InputCheckAndRun $1
+
+if [ ! -d "$1" ]; then
+    error the inserted directory does not exist
+fi
+
+USERS=${users:-1}
+if ! isnumber "$USERS"; then
+    error the -u option requires a number as argument
+fi
+
+process_data "$1"

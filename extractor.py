@@ -20,14 +20,14 @@ import sys
 
 
 class Extractor:
-    def __init__(self, directory, target_directory, users, memory, containers, headerFlag):
+    def __init__(self, directory, target_file, users, memory, containers, headerFlag):
         self.containers = containers
         self.users = users
         self.memory = memory
         self.directory = directory
         self.directoryName = os.path.basename(directory)
         self.directoryName = self.directoryName[:len(self.directoryName) - 4]
-        self.target_directory = target_directory
+        self.target_file = target_file
         self.stagesRows = None
         self.stagesTasksList = []
         self.jobsList = []
@@ -35,7 +35,7 @@ class Extractor:
         self.headerFlag = headerFlag
 
     def writeHeader(self):
-        with open(self.target_directory + '/summary.csv', 'a') as f:
+        with open(self.target_file, 'a') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             targetHeaders = []
             jobHeaders = ['run', 'jobId', 'CompletionTime']
@@ -48,7 +48,7 @@ class Extractor:
             writer.writerow(targetHeaders)
 
     def produceFile(self, finalList):
-        with open(self.target_directory + '/summary.csv', 'a') as f:
+        with open(self.target_file, 'a') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             for item in finalList:
                 writer.writerow(item)
@@ -154,7 +154,7 @@ class Extractor:
 def main():
     args = sys.argv
     if len(args) != 7:
-        print("Required args: [TOP_DIRECTORY] [TARGET_DIRECTORY]")
+        print("Required args: [TOP_DIRECTORY] [TARGET_FILE]")
         exit(-1)
     else:
         extractor = Extractor(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]),str(args[6]))
