@@ -27,7 +27,6 @@ set -a
 . "$DIR"/config.sh
 set +a
 
-NONZIP_REGEX='app(lication)?-[0-9]+-[0-9]+'
 
 error_aux ()
 {
@@ -35,6 +34,46 @@ error_aux ()
     exit 1
 }
 alias error='error_aux $LINENO '
+
+usage ()
+{
+    echo $(basename "$0") '[-p|-s]' directory >&2
+    echo '    process the data in directory' >&2
+    echo '    -p to only profile the logs, -s to only simulate' >&2
+    exit 2
+}
+
+while getopts :ps opt; do
+    case "$opt" in
+        p)
+            PROCESS=yes
+            ;;
+        s)
+            SIMULATE=yes
+            ;;
+        \?)
+            error unrecognized option -$OPTARG
+            ;;
+        :)
+            error -$OPTARG option requires an argument
+            ;;
+    esac
+done
+shift $(expr $OPTIND - 1)
+
+if [ "x$PROCESS" != xyes ] && [ "x$SIMULATE" != xyes ]; then
+    PROCESS=yes
+    SIMULATE=yes
+fi
+
+if [ $# -ne 1 ]; then
+    usage
+fi
+
+if [ ! -d "$1" ]; then
+    error the inserted directory does not exist
+fi
+
 
 parse_configuration ()
 {
@@ -55,21 +94,25 @@ build_lua_file ()
 
     STAGES=$(python "$DIR"/automate.py "$absdir/jobs_1.csv" \
                     "$absdir/tasks_1.csv" "$absdir/stages_1.csv" "$absdir")
-    DAGSIM_STAGES="$STAGES" python "$DIR"/lua_file_builder.py "$reldir" "$app_id" "$cores"
+    DAGSIM_STAGES="$STAGES" python "$DIR"/lua_file_builder.py \
+                 "$reldir" "$app_id" "$cores"
 }
 
 process_data ()
 {
     root="$1"
 
-    find -E "$root" -regex '.*'/"$NONZIP_REGEX".zip -execdir unzip '{}' \;
+    find -E "$root" -regex '.*'/"$APP_REGEX".zip -execdir unzip '{}' \;
 
-    find -E "$root" -regex '.*'/"$NONZIP_REGEX" | while read -r filename; do
-        app_id=$(echo $filename | grep -o -E "$NONZIP_REGEX")
+    results_file="$1/ubertable.csv"
+    echo Run, Executors, Total Cores, Memory, Datasize > "$results_file"
+
+    find -E "$root" -regex '.*'/"$APP_REGEX" | while read -r filename; do
+        app_id=$(echo $filename | grep -o -E "$APP_REGEX")
 
         parse_configuration "$filename"
         echo $app_id, $EXECUTORS, $TOTAL_CORES, $MEMORY, $DATASIZE \
-             >> "$root/ubertable.csv"
+             >> "$results_file"
 
         dir="$(dirname "$filename")"
         newdir="$dir/${app_id}_csv"
@@ -87,8 +130,7 @@ simulate_all ()
     results_file="$root/simulations.csv"
     echo Experiment, Run, Sim Result > "$results_file"
 
-    dir_regex='.*'/"$NONZIP_REGEX"_csv
-    find -E "$1" -regex "$dir_regex" | while read -r dir; do
+    find -E "$1" -regex '.*'/"$APP_REGEX"_csv | while read -r dir; do
         path="$(echo $dir | sed s/_csv//)"
         filename="$(basename "$path")"
 
@@ -110,44 +152,7 @@ simulate_all ()
     done
 }
 
-usage ()
-{
-    echo $0: usage is [ROOT_DIRECTORY] [MODE], where MODE must be in \
-         '(0|1|2)', 0 '->' extract only, 1 '->' simulate only, 2 both >&2
-    exit 2
-}
 
-isnumber ()
-{
-    test "$1" && printf '%d' "$1" > /dev/null 2>&1
-}
-
-if [ $# -ne 2 ]; then
-    usage
-fi
-
-if [ ! -d "$1" ]; then
-    error the inserted directory does not exist
-fi
-
-if ! isnumber "$2"; then
-    usage
-fi
-
-if [ "$2" -gt -1 ] && [ "$2" -lt 3 ]; then
-    echo Run, Executors, Total Cores, Memory, Datasize > "$1/ubertable.csv"
-    case "$2" in
-        0)
-            process_data "$1"
-            ;;
-        1)
-            simulate_all "$1"
-            ;;
-        2)
-            process_data "$1"
-            simulate_all "$1"
-            ;;
-    esac
-else
-    usage
-fi
+## If you reach this point unscathed, you are sure you can do something.
+test "x$PROCESS" = xyes && process_data "$1"
+test "x$SIMULATE" = xyes && simulate_all "$1"

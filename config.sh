@@ -1,5 +1,3 @@
-#!/bin/sh
-
 ## Copyright 2016 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +11,9 @@
 ## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
+
+# Extended regular expression to match application IDs
+APP_REGEX='app(lication)?-[0-9]+-[0-9]+'
 
 # Directory where dagSim is installed
 DAGSIM_DIR=
