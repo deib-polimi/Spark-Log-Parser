@@ -13,15 +13,12 @@
 ## limitations under the License.
 
 # Extended regular expression to match application IDs
-APP_REGEX='app(lication)?-[0-9]+-[0-9]+'
+APP_REGEX='app(lication)?[-_][0-9]+[-_][0-9]+'
 
 # Directory where dagSim is installed
 DAGSIM_DIR=
 
 ## DAGSIM parameters
-# Number of computation nodes in the system
-DAGSIM_CONTAINERS=16
-
 # Number of users accessing the system
 DAGSIM_USERS=1
 

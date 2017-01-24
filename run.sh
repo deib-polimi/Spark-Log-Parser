@@ -43,13 +43,16 @@ usage ()
     exit 2
 }
 
-while getopts :ps opt; do
+while getopts :psh opt; do
     case "$opt" in
         p)
             PROCESS=yes
             ;;
         s)
             SIMULATE=yes
+            ;;
+        h)
+            usage
             ;;
         \?)
             error unrecognized option -$OPTARG
