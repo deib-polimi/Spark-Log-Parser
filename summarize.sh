@@ -23,7 +23,8 @@ while [ -L "$SOURCE" ]; do
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-REGEX='app(lication)?-[0-9]+-[0-9]+'
+. "$DIR/config.sh"
+
 
 error_aux ()
 {
@@ -34,16 +35,19 @@ alias error='error_aux $LINENO '
 
 usage ()
 {
-    echo $(basename "$0") [-u number] directory >&2
+    echo $(basename "$0") '[-u number]' directory >&2
     echo '    summarize the data in directory' >&2
     echo '    you can provide the number of users with -u, the default is 1' >&2
     exit 2
 }
 
-while getopts :u: opt; do
+while getopts :u:h opt; do
     case "$opt" in
         u)
             users="$OPTARG"
+            ;;
+        h)
+            usage
             ;;
         \?)
             error unrecognized option -$OPTARG
@@ -74,7 +78,7 @@ process_data ()
     : > "$outfile"
 
     header=True
-    find -E "$root" -regex '.*'/"$REGEX"_csv | while read -r dir; do
+    find -E "$root" -regex '.*'/"$APP_REGEX"_csv | while read -r dir; do
         parse_configuration "$dir"
         python "$DIR/extractor.py" "$dir" "$outfile" "$USERS" \
                "$DATASIZE" "$TOTAL_CORES" "$header" && header=False

@@ -28,7 +28,7 @@ with DagSim, starting from the already processed data.
 If you do not use any flag, the script will do both steps.
 
 ```shell
-summarize.sh [-u number] directory
+summarize.sh [-h] [-u number] directory
 ```
 
 Execute `summarize.sh` and pass the path to the root directory.
