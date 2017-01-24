@@ -80,7 +80,7 @@ process_data ()
     header=True
     find -E "$root" -regex '.*'/"$APP_REGEX"_csv | while read -r dir; do
         parse_configuration "$dir"
-        python "$DIR/extractor.py" "$dir" "$outfile" "$USERS" \
+        python "$DIR/summary/extractor.py" "$dir" "$outfile" "$USERS" \
                "$DATASIZE" "$TOTAL_CORES" "$header" && header=False
     done
 }
