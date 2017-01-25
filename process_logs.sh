@@ -133,7 +133,8 @@ simulate_all ()
     root="$1"
 
     results_file="$root/simulations.csv"
-    echo Experiment, Run, Sim Result > "$results_file"
+    echo Experiment, Run, Sim Avg, Sim Dev, Sim Lower, \
+         Sim Upper, Sim Accuracy > "$results_file"
 
     find -E "$1" -regex '.*'/"$APP_REGEX"_csv | while read -r dir; do
         path="$(echo $dir | sed s/_csv//)"
@@ -148,11 +149,20 @@ simulate_all ()
         ./dagSim "$absdir/$filename.lua" > "$outfile"
         cd - > /dev/null 2>&1
 
-        result=$(cat "$outfile" | grep '^0' | cut -f 2- | grep '^0' | cut -f 2)
+        results_line="$(cat "$outfile" | grep ^0 | cut -f 2- | \
+                            grep ^0 | cut -f 2-)"
         rm "$outfile"
 
+        avg="$(echo $results_line | awk '{ print $1 }')"
+        dev="$(echo $results_line | awk '{ print $2 }')"
+        lower="$(echo $results_line | awk '{ print $3 }')"
+        upper="$(echo $results_line | awk '{ print $4 }')"
+        accuracy="$(echo $results_line | awk '{ print $NF }')"
+
         parse_configuration "$dir"
-        echo $EXPERIMENT, $filename, $result >> "$results_file"
+        echo $EXPERIMENT, $filename, ${avg:-error}, ${dev:-error}, \
+             ${lower:-error}, ${upper:-error}, \
+             ${accuracy:-error} >> "$results_file"
         echo Finished
     done
 }
