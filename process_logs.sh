@@ -160,9 +160,7 @@ simulate_all ()
             sed -e "s#@@MAXJOBS@@#$DAGSIM_MAXJOBS#g" \
                 -e "s#@@COEFF@@#$DAGSIM_CONFINTCOEFF#g" \
                 > "$luafile"
-        cd "$DAGSIM_DIR"
-        ./dagSim "$luafile" > "$outfile"
-        cd - > /dev/null 2>&1
+        "$DAGSIM" "$luafile" > "$outfile"
 
         results_line="$(cat "$outfile" | grep ^0 | cut -f 2- | \
                             grep ^0 | cut -f 2-)"

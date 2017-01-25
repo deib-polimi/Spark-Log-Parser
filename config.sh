@@ -17,8 +17,8 @@ APP_REGEX='app(lication)?[-_][0-9]+[-_][0-9]+'
 
 ## DAGSIM parameters
 ## These apply only to process_logs.sh
-# Directory where dagSim is installed
-DAGSIM_DIR=
+# DagSim executable
+DAGSIM=dagsim.sh
 
 # Number of users accessing the system
 DAGSIM_USERS=1
