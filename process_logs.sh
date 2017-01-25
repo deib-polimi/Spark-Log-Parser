@@ -105,24 +105,26 @@ process_data ()
 {
     root="$1"
 
-    find -E "$root" -regex '.*'/"$APP_REGEX".zip -execdir unzip '{}' \;
+    find -E "$root" -regex '.*'/"$APP_REGEX".zip -execdir unzip -u -o '{}' \;
 
     results_file="$1/ubertable.csv"
     echo Run, Executors, Total Cores, Memory, Datasize > "$results_file"
 
     find -E "$root" -regex '.*'/"$APP_REGEX" | while read -r filename; do
-        app_id=$(echo $filename | grep -o -E "$APP_REGEX")
+        if grep -q /logs/ "$filename"; then
+            app_id=$(echo $filename | grep -o -E "$APP_REGEX")
 
-        parse_configuration "$filename"
-        echo $app_id, $EXECUTORS, $TOTAL_CORES, $MEMORY, $DATASIZE \
-             >> "$results_file"
+            parse_configuration "$filename"
+            echo $app_id, $EXECUTORS, $TOTAL_CORES, $MEMORY, $DATASIZE \
+                 >> "$results_file"
 
-        dir="$(dirname "$filename")"
-        newdir="$dir/${app_id}_csv"
-        mkdir -p "$newdir"
+            dir="$(dirname "$filename")"
+            newdir="$dir/${app_id}_csv"
+            mkdir -p "$newdir"
 
-        python "$DIR"/processing/parser.py "$dir/$app_id" 1 "$newdir"
-        build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
+            python "$DIR"/processing/parser.py "$dir/$app_id" 1 "$newdir"
+            build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
+        fi
     done
 }
 
