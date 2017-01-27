@@ -80,7 +80,7 @@ fi
 
 parse_configuration ()
 {
-    EXPERIMENT=$(echo $1 | tr / '\n' | grep -E '[0-9]+_[0-9]+_[0-9]+G_[0-9]+')
+    EXPERIMENT=$(echo $1 | tr / '\n' | grep -E '[0-9]+_[0-9]+_[0-9]+G_[.0-9]+')
     EXECUTORS=$(echo $EXPERIMENT | awk -F _ '{ print $1 }')
     CORES=$(echo $EXPERIMENT | awk -F _ '{ print $2 }')
     MEMORY=$(echo $EXPERIMENT | awk -F _ '{ print $3 }')
@@ -111,7 +111,7 @@ process_data ()
     echo Run, Executors, Total Cores, Memory, Datasize > "$results_file"
 
     find -E "$root" -regex '.*'/"$APP_REGEX" | while read -r filename; do
-        if grep -q /logs/ "$filename"; then
+        if echo "$filename" | grep -q /logs/; then
             app_id=$(echo $filename | grep -o -E "$APP_REGEX")
 
             parse_configuration "$filename"
