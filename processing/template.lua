@@ -12,23 +12,27 @@
 --    pre    (String[]) : name of the stages that must be completed for this one to start
 --    post   (String[]) : name of the stages that can start after this one has finished
 --
-Stages = [STAGES];
+Stages = @@STAGES@@;
+
 -- Number of computation nodes in the system
-Containers = [CONTAINERS];
+Containers = @@CONTAINERS@@;
+
 -- Number of users accessing the system
-Users = [USERS];
+Users = @@USERS@@;
+
 -- Distribution of the think time for the users. This element is a distribution with the same
 -- format as the task running times
-UThinkTimeDistr = {type = "[TYPE]", params = [PARAMS]};
+UThinkTimeDistr = {type = "@@TYPE@@", params = @@PARAMS@@};
 
 -- Total number of jobs to simulate
-maxJobs = [MAXJOBS];
+maxJobs = @@MAXJOBS@@;
+
 -- Coefficient for the Confidence Intervals
 -- 99%	2.576
 -- 98%	2.326
 -- 95%	1.96
 -- 90%	1.645
-confIntCoeff = [COEFF];
+confIntCoeff = @@COEFF@@;
 
 -- -- -- -- -- -- -- -- -- -- -- --
 -- -- -- -- supported distributions:

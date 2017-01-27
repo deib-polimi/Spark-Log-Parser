@@ -145,8 +145,13 @@ simulate_all ()
         trap "rm -f \'$outfile\'; exit -1" INT TERM
 
         echo Simulating $filename
+        luafile="$absdir/$filename.lua"
+        cat "$luafile".template | \
+            sed -e "s#@@MAXJOBS@@#$DAGSIM_MAXJOBS#g" \
+                -e "s#@@COEFF@@#$DAGSIM_CONFINTCOEFF#g" \
+                > "$luafile"
         cd "$DAGSIM_DIR"
-        ./dagSim "$absdir/$filename.lua" > "$outfile"
+        ./dagSim "$luafile" > "$outfile"
         cd - > /dev/null 2>&1
 
         results_line="$(cat "$outfile" | grep ^0 | cut -f 2- | \

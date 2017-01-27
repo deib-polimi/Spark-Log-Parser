@@ -23,15 +23,16 @@ def buildLuaFile(targetDirectory, name, containers):
         content = infile.read()
 
     content = content \
-              .replace('[STAGES]', os.environ['DAGSIM_STAGES']) \
-              .replace('[CONTAINERS]', containers) \
-              .replace('[USERS]', os.environ['DAGSIM_USERS']) \
-              .replace('[TYPE]', os.environ['DAGSIM_UTHINKTIMEDISTR_TYPE']) \
-              .replace('[PARAMS]', os.environ['DAGSIM_UTHINKTIMEDISTR_PARAMS']) \
-              .replace('[MAXJOBS]', os.environ['DAGSIM_MAXJOBS']) \
-              .replace('[COEFF]', os.environ['DAGSIM_CONFINTCOEFF'])
+              .replace('@@STAGES@@', os.environ['DAGSIM_STAGES']) \
+              .replace('@@CONTAINERS@@', containers) \
+              .replace('@@USERS@@', os.environ['DAGSIM_USERS']) \
+              .replace('@@TYPE@@',
+                       os.environ['DAGSIM_UTHINKTIMEDISTR_TYPE']) \
+              .replace('@@PARAMS@@',
+                       os.environ['DAGSIM_UTHINKTIMEDISTR_PARAMS'])
 
-    outfilename = os.path.join(targetDirectory, '{}.lua'.format(name))
+    outfilename = os.path.join(targetDirectory,
+                               '{}.lua.template'.format(name))
     with open(outfilename, 'w') as outfile:
         outfile.write(content)
 
@@ -40,13 +41,13 @@ def main():
     args = sys.argv
     if len(args) != 4:
         print("Required args: [TARGET_DIRECTORY] [NAME]")
-        sys.exit(-1)
+        sys.exit(2)
     else:
         if os.path.exists(str(args[1])):
             buildLuaFile(str(args[1]), str(args[2]), str(args[3]))
         else:
             print("Inserted directory does not exist")
-            sys.exit(-1)
+            sys.exit(1)
 
 
 if __name__ == '__main__':
