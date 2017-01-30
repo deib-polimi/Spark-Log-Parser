@@ -93,7 +93,7 @@ build_lua_file ()
     reldir="$1"
     app_id="$2"
     cores="$3"
-    absdir="$(pwd)/$reldir"
+    absdir="$(cd -P -- "$reldir" && pwd)"
 
     STAGES=$(python "$DIR"/processing/automate.py "$absdir/jobs_1.csv" \
                     "$absdir/tasks_1.csv" "$absdir/stages_1.csv" "$absdir")
