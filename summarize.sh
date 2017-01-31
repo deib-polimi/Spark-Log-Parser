@@ -78,7 +78,9 @@ process_data ()
     : > "$outfile"
 
     header=True
-    find -E "$root" -regex '.*'/"$APP_REGEX"_csv | while read -r dir; do
+    find "$root" -type d -name '*_csv' | grep -E "$APP_REGEX" \
+        | while IFS= read -r dir; do
+
         parse_configuration "$dir"
         python "$DIR/summary/extractor.py" "$dir" "$outfile" "$USERS" \
                "$DATASIZE" "$TOTAL_CORES" "$header" && header=False

@@ -105,25 +105,34 @@ process_data ()
 {
     root="$1"
 
-    find -E "$root" -regex '.*'/"$APP_REGEX".zip -execdir unzip -u -o '{}' \;
+    find "$root" -name '*.zip' | grep -E "$APP_REGEX" \
+        | while IFS= read -r filename; do
+
+        dir="$(cd -P -- "$(dirname "$filename")" && pwd)"
+        unzip -u -o "$filename" -d "$dir"
+    done
 
     results_file="$1/ubertable.csv"
     echo Run, Executors, Total Cores, Memory, Datasize > "$results_file"
 
-    find -E "$root" -regex '.*'/"$APP_REGEX" | while read -r filename; do
+    find "$root" -type f | grep -E "$APP_REGEX" \
+        | while IFS= read -r filename; do
+
         if echo "$filename" | grep -q /logs/; then
             app_id=$(echo $filename | grep -o -E "$APP_REGEX")
 
-            parse_configuration "$filename"
-            echo $app_id, $EXECUTORS, $TOTAL_CORES, $MEMORY, $DATASIZE \
-                 >> "$results_file"
+            if [ "x$app_id" = "x$(basename "$filename")" ]; then
+                parse_configuration "$filename"
+                echo $app_id, $EXECUTORS, $TOTAL_CORES, $MEMORY, $DATASIZE \
+                     >> "$results_file"
 
-            dir="$(dirname "$filename")"
-            newdir="$dir/${app_id}_csv"
-            mkdir -p "$newdir"
+                dir="$(dirname "$filename")"
+                newdir="$dir/${app_id}_csv"
+                mkdir -p "$newdir"
 
-            python "$DIR"/processing/parser.py "$dir/$app_id" 1 "$newdir"
-            build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
+                python "$DIR"/processing/parser.py "$dir/$app_id" 1 "$newdir"
+                build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
+            fi
         fi
     done
 }
@@ -136,13 +145,14 @@ simulate_all ()
     echo Experiment, Run, Sim Avg, Sim Dev, Sim Lower, \
          Sim Upper, Sim Accuracy > "$results_file"
 
-    find -E "$1" -regex '.*'/"$APP_REGEX"_csv | while read -r dir; do
-        path="$(echo $dir | sed s/_csv//)"
-        filename="$(basename "$path")"
+    find "$root" -type d -name '*_csv' | grep -E "$APP_REGEX" \
+        | while IFS= read -r dir; do
 
-        absdir="$(cd -P "$dir" && pwd)"
+        filename="$(echo "$dir" | grep -E -o "$APP_REGEX")"
+
+        absdir="$(cd -P -- "$dir" && pwd)"
         outfile="$absdir/tmp.txt"
-        trap "rm -f \'$outfile\'; exit -1" INT TERM
+        trap "rm -f \'$outfile\'; exit 130" INT TERM
 
         echo Simulating $filename
         luafile="$absdir/$filename.lua"
