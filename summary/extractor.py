@@ -22,8 +22,16 @@ import sys
 class Extractor:
     def __init__(self, directory, target_file, users, memory, containers, headerFlag):
         self.containers = containers
+        self.appStartTime = None
+        self.minTaskLaunchTime = 0
         self.users = users
         self.memory = memory
+        self.jobCsvHeaders = ['run', 'jobId', 'CompletionTime','DeltaBeforeComputing']
+        #This headers must be repetead as many times as the maximum number of stages
+        #among all the jobs
+        self.stagesCsvHeaders = ['nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
+        ##
+        self.terminalCsvHeaders = ['users', 'dataSize', 'nContainers']
         self.directory = directory
         self.directoryName = os.path.basename(directory)
         self.directoryName = self.directoryName[:len(self.directoryName) - 4]
@@ -34,17 +42,17 @@ class Extractor:
         self.maxStagesLenght = 0
         self.headerFlag = headerFlag
 
+    """
+    Writes the header of the csv file this python script produces
+    """
     def writeHeader(self):
         with open(self.target_file, 'a') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             targetHeaders = []
-            jobHeaders = ['run', 'jobId', 'CompletionTime']
-            stageHeaders = ['nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
-            terminalHeaders = ['users', 'dataSize', 'nContainers']
-            targetHeaders += jobHeaders
+            targetHeaders += self.jobCsvHeaders
             for i in range(0, self.maxStagesLenght):
-                targetHeaders += stageHeaders
-            targetHeaders += terminalHeaders
+                targetHeaders += self.stagesCsvHeaders
+            targetHeaders += self.terminalCsvHeaders
             writer.writerow(targetHeaders)
 
     def produceFile(self, finalList):
@@ -52,6 +60,13 @@ class Extractor:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             for item in finalList:
                 writer.writerow(item)
+
+    def retrieveApplicationStartTime(self):
+        with open(self.directory+"/app_1.csv","r") as f:
+            app_rows = csv.DictReader(f)
+            for index,row in enumerate(app_rows):
+                if index==0:
+                    self.appStartTime = int(row["Timestamp"])
 
     def retrieve_jobs(self, jobs_file):
         with open(jobs_file, "r") as f:
@@ -69,16 +84,27 @@ class Extractor:
             self.maxStagesLenght = max_
         return targetList
 
+    def computeMaxStageCardinality(self):
+        return max(map(lambda x : len(x[2]),self.jobsList));
+
     def produce_final_list(self):
+        currentLenght = 3;
         final_list = []
         tmp_list = []
+        normalizedMaxStageCardinality = 4+self.maxStagesLenght*7
         for job in self.jobsList:
             tmp_list.append(self.directoryName)
             tmp_list.append(job[0])
             tmp_list.append(job[1])
+            tmp_list.append(self.minTaskLaunchTime-self.appStartTime);
             for stageItem in self.stagesTasksList:
                 if stageItem["stageId"] in job[2]:
                     tmp_list = tmp_list + stageItem.values()[1:]
+            length = len(tmp_list);
+            if length < normalizedMaxStageCardinality:
+                for i in range(0, normalizedMaxStageCardinality - length):
+                    tmp_list.append("")
+
             tmp_list.append(self.users)
             tmp_list.append(self.memory)
             tmp_list.append(self.containers)
@@ -89,8 +115,10 @@ class Extractor:
     def run(self):
         tasks_file = self.directory + "/tasks_1.csv"
         jobs_file = self.directory + "/jobs_1.csv"
+        self.retrieveApplicationStartTime()
         with open(tasks_file, "r") as f:
             self.stagesRows = self.orderStages(csv.DictReader(f))
+            self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
         self.jobsList = self.retrieve_jobs(jobs_file)
         if self.headerFlag == 'True':
             self.writeHeader()
