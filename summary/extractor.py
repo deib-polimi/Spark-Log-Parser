@@ -23,10 +23,11 @@ class Extractor:
     def __init__(self, directory, target_file, users, memory, containers, headerFlag):
         self.containers = containers
         self.appStartTime = None
+        self.appEndTime = None
         self.minTaskLaunchTime = 0
         self.users = users
         self.memory = memory
-        self.jobCsvHeaders = ['run', 'jobId', 'CompletionTime','DeltaBeforeComputing']
+        self.jobCsvHeaders = ['run','applicationCompletionTime', 'jobId', 'JobCompletionTime','ApplicationDeltaBeforeComputing']
         #This headers must be repetead as many times as the maximum number of stages
         #among all the jobs
         self.stagesCsvHeaders = ['nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
@@ -61,12 +62,14 @@ class Extractor:
             for item in finalList:
                 writer.writerow(item)
 
-    def retrieveApplicationStartTime(self):
+    def retrieveApplicationTime(self):
         with open(self.directory+"/app_1.csv","r") as f:
             app_rows = csv.DictReader(f)
             for index,row in enumerate(app_rows):
                 if index==0:
                     self.appStartTime = int(row["Timestamp"])
+                elif index==1:
+                    self.appEndTime = int(row["Timestamp"])
 
     def retrieve_jobs(self, jobs_file):
         with open(jobs_file, "r") as f:
@@ -94,6 +97,7 @@ class Extractor:
         normalizedMaxStageCardinality = 4+self.maxStagesLenght*7
         for job in self.jobsList:
             tmp_list.append(self.directoryName)
+            tmp_list.append(self.appEndTime - self.appStartTime)
             tmp_list.append(job[0])
             tmp_list.append(job[1])
             tmp_list.append(self.minTaskLaunchTime-self.appStartTime);
@@ -115,7 +119,7 @@ class Extractor:
     def run(self):
         tasks_file = self.directory + "/tasks_1.csv"
         jobs_file = self.directory + "/jobs_1.csv"
-        self.retrieveApplicationStartTime()
+        self.retrieveApplicationTime()
         with open(tasks_file, "r") as f:
             self.stagesRows = self.orderStages(csv.DictReader(f))
             self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
