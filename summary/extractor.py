@@ -91,10 +91,9 @@ class Extractor:
         return max(map(lambda x : len(x[2]),self.jobsList));
 
     def produce_final_list(self):
-        currentLenght = 3;
         final_list = []
         tmp_list = []
-        normalizedMaxStageCardinality = 4+self.maxStagesLenght*7
+        normalizedMaxStageCardinality = len(self.jobCsvHeaders)+self.maxStagesLenght*7
         for job in self.jobsList:
             tmp_list.append(self.directoryName)
             tmp_list.append(self.appEndTime - self.appStartTime)
