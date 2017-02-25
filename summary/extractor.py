@@ -27,7 +27,8 @@ class Extractor:
         self.minTaskLaunchTime = 0
         self.users = users
         self.memory = memory
-        self.jobCsvHeaders = ['run','applicationCompletionTime', 'jobId', 'JobCompletionTime','ApplicationDeltaBeforeComputing']
+        self.applicationCsvHeaders = ['run','applicationCompletionTime','ApplicationDeltaBeforeComputing']
+        self.jobCsvHeaders = ['jobId', 'JobCompletionTime']
         #This headers must be repetead as many times as the maximum number of stages
         #among all the jobs
         self.stagesCsvHeaders = ['nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
@@ -50,17 +51,18 @@ class Extractor:
         with open(self.target_file, 'a') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             targetHeaders = []
-            targetHeaders += self.jobCsvHeaders
-            for i in range(0, self.maxStagesLenght):
-                targetHeaders += self.stagesCsvHeaders
+            targetHeaders += self.applicationCsvHeaders
+            for j in range(0, len(self.jobsList)):
+                targetHeaders += self.jobCsvHeaders
+                for i in range(0, self.maxStagesLenght):
+                    targetHeaders += self.stagesCsvHeaders
             targetHeaders += self.terminalCsvHeaders
             writer.writerow(targetHeaders)
 
     def produceFile(self, finalList):
         with open(self.target_file, 'a') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
-            for item in finalList:
-                writer.writerow(item)
+            writer.writerow(finalList)
 
     def retrieveApplicationTime(self):
         with open(self.directory+"/app_1.csv","r") as f:
@@ -87,33 +89,34 @@ class Extractor:
             self.maxStagesLenght = max_
         return targetList
 
-    def computeMaxStageCardinality(self):
-        return max(map(lambda x : len(x[2]),self.jobsList));
+
+    def computeMaxJobsCardinality(self):
+        pass
 
     def produce_final_list(self):
-        final_list = []
-        tmp_list = []
+        finalList = [];
+        batch = []
         normalizedMaxStageCardinality = len(self.jobCsvHeaders)+self.maxStagesLenght*7
+        finalList.append(self.directoryName)
+        finalList.append(self.appEndTime - self.appStartTime)
+        finalList.append(self.minTaskLaunchTime-self.appStartTime)
         for job in self.jobsList:
-            tmp_list.append(self.directoryName)
-            tmp_list.append(self.appEndTime - self.appStartTime)
-            tmp_list.append(job[0])
-            tmp_list.append(job[1])
-            tmp_list.append(self.minTaskLaunchTime-self.appStartTime);
+            batch.append(job[0])
+            batch.append(job[1])
             for stageItem in self.stagesTasksList:
                 if stageItem["stageId"] in job[2]:
-                    tmp_list = tmp_list + stageItem.values()[1:]
-            length = len(tmp_list);
+                    batch = batch + stageItem.values()[1:]
+            length = len(batch);
             if length < normalizedMaxStageCardinality:
                 for i in range(0, normalizedMaxStageCardinality - length):
-                    tmp_list.append("")
+                    batch.append("")
+            finalList += batch
+            batch = []
+        finalList.append(self.users)
+        finalList.append(self.memory)
+        finalList.append(self.containers)
 
-            tmp_list.append(self.users)
-            tmp_list.append(self.memory)
-            tmp_list.append(self.containers)
-            final_list.append(tmp_list)
-            tmp_list = []
-        return final_list
+        return finalList
 
     def run(self):
         tasks_file = self.directory + "/tasks_1.csv"
