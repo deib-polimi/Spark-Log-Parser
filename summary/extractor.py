@@ -20,15 +20,16 @@ import sys
 
 
 class Extractor:
-    def __init__(self, directory, target_file, users, memory, containers, headerFlag):
+    def __init__(self, directory, target_directory, users, memory, containers, headerFlag):
         self.containers = containers
+        self.target_directory = target_directory
         self.appStartTime = None
         self.appEndTime = None
         self.minTaskLaunchTime = 0
         self.users = users
         self.memory = memory
         self.jobsCardinality = 0;
-        self.maxJobsCardinality = 0;
+        self.stagesCardinality = 0;
         self.applicationCsvHeaders = ['run','applicationCompletionTime','ApplicationDeltaBeforeComputing']
         self.jobCsvHeaders = ['jobId', 'JobCompletionTime']
         #This headers must be repetead as many times as the maximum number of stages
@@ -39,11 +40,9 @@ class Extractor:
         self.directory = directory
         self.directoryName = os.path.basename(directory)
         self.directoryName = self.directoryName[:len(self.directoryName) - 4]
-        self.target_file = target_file
         self.stagesRows = None
         self.stagesTasksList = []
         self.jobsList = []
-        self.maxStagesLenght = 0
         self.headerFlag = headerFlag
 
     """
@@ -56,7 +55,7 @@ class Extractor:
             targetHeaders += self.applicationCsvHeaders
             for j in range(0, self.jobsCardinality):
                 targetHeaders += self.jobCsvHeaders
-                for i in range(0, self.maxStagesLenght):
+                for i in range(0, self.stagesCardinality):
                     targetHeaders += self.stagesCsvHeaders
             targetHeaders += self.terminalCsvHeaders
             writer.writerow(targetHeaders)
@@ -77,66 +76,23 @@ class Extractor:
 
     def retrieve_jobs(self, jobs_file):
         with open(jobs_file, "r") as f:
+            stagesCardinality = 0;
             targetList = []
             jobs_rows = sorted(csv.DictReader(f), key=lambda x: x["Job ID"])
             i = 0
-            max_ = 0
             while i < len(jobs_rows):
                 completionTime = int(jobs_rows[i + 1]["Completion Time"]) - int(jobs_rows[i]["Submission Time"])
                 stages = jobs_rows[i]["Stage IDs"][1:(len(jobs_rows[i]["Stage IDs"]) - 1)].split(", ")
-                if max_ < len(stages):
-                    max_ = len(stages)
                 targetList.append([jobs_rows[i]["Job ID"], completionTime, stages])
                 i += 2
-            self.maxStagesLenght = max_
+                stagesCardinality += len(stages)
+
+            self.stagesCardinality = stagesCardinality
         return targetList
-
-    """
-    Compares the number of jobs/stages of this application with
-    the ones of all the applications processed before
-    """
-    def checkGlobalJobStages(self):
-        filename = self.target_file.split("summary.csv")[0]+".comp"
-        if not (os.path.exists(filename)):
-            with open(filename, "w") as f:
-                f.write(str(self.jobsCardinality)+","+str(self.maxStagesLenght))
-        else:
-            batch = ''
-            with open(filename, "r") as f:
-                line = f.readline()
-                split = line.split(",")
-                jobsCardinality = int(split[0])
-                stagesCardinality = int(split[1])
-
-                if(jobsCardinality>self.jobsCardinality):
-                    self.maxJobsCardinality = jobsCardinality
-
-                    if(stagesCardinality > self.maxStagesLenght):
-                        self.maxStagesLenght = stagesCardinality
-                    else:
-                        batch = str(jobsCardinality)+","+str(self.maxStagesLenght)
-
-                else:
-                    self.maxJobsCardinality = self.jobsCardinality
-                    batch += str(self.jobsCardinality)
-
-                    if(stagesCardinality > self.maxStagesLenght):
-                        self.maxStagesLenght = stagesCardinality
-                        batch += ","+str(stagesCardinality)
-                    else:
-                        batch += ","+str(self.maxStagesLenght)
-
-            if(batch != ''):
-                with open(filename, "w") as f:
-                    f.write(batch)
-
-
-
 
     def produce_final_list(self):
         finalList = [];
         batch = []
-        normalizedMaxStageCardinality = len(self.jobCsvHeaders)+self.maxStagesLenght*7
         finalList.append(self.directoryName)
         finalList.append(self.appEndTime - self.appStartTime)
         finalList.append(self.minTaskLaunchTime-self.appStartTime)
@@ -146,10 +102,6 @@ class Extractor:
             for stageItem in self.stagesTasksList:
                 if stageItem["stageId"] in job[2]:
                     batch = batch + stageItem.values()[1:]
-            length = len(batch);
-            if length < normalizedMaxStageCardinality:
-                for i in range(0, normalizedMaxStageCardinality - length):
-                    batch.append("")
             finalList += batch
             batch = []
         finalList.append(self.users)
