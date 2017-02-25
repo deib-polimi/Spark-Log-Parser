@@ -20,7 +20,7 @@ import sys
 
 
 class Extractor:
-    def __init__(self, directory, target_directory, users, memory, containers, headerFlag):
+    def __init__(self, directory, target_directory, users, memory, containers):
         self.containers = containers
         self.target_directory = target_directory
         self.appStartTime = None
@@ -30,7 +30,7 @@ class Extractor:
         self.memory = memory
         self.jobsCardinality = 0;
         self.stagesCardinality = 0;
-        self.applicationCsvHeaders = ['run','applicationCompletionTime','ApplicationDeltaBeforeComputing']
+        self.applicationCsvHeaders = ['application','applicationCompletionTime','applicationDeltaBeforeComputing']
         self.jobCsvHeaders = ['jobId', 'JobCompletionTime']
         #This headers must be repetead as many times as the maximum number of stages
         #among all the jobs
@@ -43,27 +43,17 @@ class Extractor:
         self.stagesRows = None
         self.stagesTasksList = []
         self.jobsList = []
-        self.headerFlag = headerFlag
 
     """
-    Writes the header of the csv file this python script produces
+    Writes the csv file this python script produces
     """
-    def writeHeader(self):
-        with open(self.target_file, 'a') as f:
-            writer = csv.writer(f, delimiter=',', lineterminator='\n')
-            targetHeaders = []
-            targetHeaders += self.applicationCsvHeaders
-            for j in range(0, self.jobsCardinality):
-                targetHeaders += self.jobCsvHeaders
-                for i in range(0, self.stagesCardinality):
-                    targetHeaders += self.stagesCsvHeaders
-            targetHeaders += self.terminalCsvHeaders
-            writer.writerow(targetHeaders)
-
     def produceFile(self, finalList):
-        with open(self.target_file, 'a') as f:
+        with open(self.target_directory+"/"+self.directoryName+"--summary.csv", 'w') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
-            writer.writerow(finalList)
+            #Writes the header of the csv file
+            writer.writerow(finalList[0])
+            #Writes the data
+            writer.writerow(finalList[1])
 
     def retrieveApplicationTime(self):
         with open(self.directory+"/app_1.csv","r") as f:
@@ -86,29 +76,33 @@ class Extractor:
                 targetList.append([jobs_rows[i]["Job ID"], completionTime, stages])
                 i += 2
                 stagesCardinality += len(stages)
-
             self.stagesCardinality = stagesCardinality
         return targetList
 
     def produce_final_list(self):
         finalList = [];
+        headerList = [];
         batch = []
         finalList.append(self.directoryName)
         finalList.append(self.appEndTime - self.appStartTime)
         finalList.append(self.minTaskLaunchTime-self.appStartTime)
+        headerList+=self.applicationCsvHeaders
         for job in self.jobsList:
             batch.append(job[0])
             batch.append(job[1])
+            headerList+=self.jobCsvHeaders
             for stageItem in self.stagesTasksList:
                 if stageItem["stageId"] in job[2]:
+                    headerList+=self.stagesCsvHeaders
                     batch = batch + stageItem.values()[1:]
             finalList += batch
             batch = []
+        headerList+=self.terminalCsvHeaders
         finalList.append(self.users)
         finalList.append(self.memory)
         finalList.append(self.containers)
 
-        return finalList
+        return [headerList, finalList]
 
     def run(self):
         tasks_file = self.directory + "/tasks_1.csv"
@@ -120,9 +114,6 @@ class Extractor:
             self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
         self.jobsList = self.retrieve_jobs(jobs_file)
         self.jobsCardinality = len(self.jobsList)
-        self.checkGlobalJobStages()
-        if self.headerFlag == 'True':
-            self.writeHeader()
         self.buildstagesTasksList()
         self.produceFile(self.produce_final_list())
 
@@ -181,11 +172,11 @@ class Extractor:
 
 def main():
     args = sys.argv
-    if len(args) != 7:
+    if len(args) != 6:
         print("Required args: [TOP_DIRECTORY] [TARGET_FILE]")
         exit(-1)
     else:
-        extractor = Extractor(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]),str(args[6]))
+        extractor = Extractor(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]))
         extractor.run()
 
 

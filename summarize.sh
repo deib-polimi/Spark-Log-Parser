@@ -74,16 +74,12 @@ process_data ()
 {
     root="$1"
 
-    outfile="$root/summary.csv"
-    : > "$outfile"
-
-    header=True
     find "$root" -type d -name '*_csv' | grep -E "$APP_REGEX" \
         | while IFS= read -r dir; do
 
         parse_configuration "$dir"
-        python "$DIR/summary/extractor.py" "$dir" "$outfile" "$USERS" \
-               "$DATASIZE" "$TOTAL_CORES" "$header" && header=False
+        python "$DIR/summary/extractor.py" "$dir" "$root" "$USERS" \
+               "$DATASIZE" "$TOTAL_CORES"
     done
 }
 
