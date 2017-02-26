@@ -2,7 +2,7 @@
 Stages = @@STAGES@@;
 
 -- Number of computation nodes in the system
-Containers = @@CONTAINERS@@;
+Nodes = @@CONTAINERS@@;
 
 -- Number of users accessing the system
 Users = @@USERS@@;
