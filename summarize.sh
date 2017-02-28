@@ -73,12 +73,11 @@ parse_configuration ()
 process_data ()
 {
     root="$1"
-
-    find "$root" -type d -name '*_csv' | grep -E "$APP_REGEX" \
-        | while IFS= read -r dir; do
+    find "$root" -type d -name logs -exec dirname {} \; \
+        | sort | uniq | while IFS= read -r dir; do
 
         parse_configuration "$dir"
-        python "$DIR/summary/extractor.py" "$dir" "$root" "$USERS" \
+        python "$DIR/summary/extractor.py" "$APP_REGEX" "$dir" "$USERS" \
                "$DATASIZE" "$TOTAL_CORES"
     done
 }
