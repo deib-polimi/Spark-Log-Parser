@@ -19,7 +19,7 @@ SOURCE="$0"
 while [ -L "$SOURCE" ]; do
     DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
     SOURCE="$(readlink "$SOURCE")"
-    [ "${SOURCE:0:1}" != / ] && SOURCE="$DIR/$SOURCE"
+    [ "${SOURCE%${SOURCE#?}}" != / ] && SOURCE="$DIR/$SOURCE"
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
@@ -28,7 +28,9 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 error_aux ()
 {
-    echo $0: $1: ${@:2} >&2
+    line="$1"
+    shift
+    echo $(basename "$0"): $line: $@ >&2
     exit 1
 }
 alias error='error_aux $LINENO '
@@ -67,7 +69,7 @@ parse_configuration ()
     CORES=$(echo $EXPERIMENT | awk -F _ '{ print $2 }')
     MEMORY=$(echo $EXPERIMENT | awk -F _ '{ print $3 }')
     DATASIZE=$(echo $EXPERIMENT | awk -F _ '{ print $4 }')
-    TOTAL_CORES=$(expr $EXECUTORS \* $CORES)
+    TOTAL_CORES=$(( $EXECUTORS * $CORES ))
 }
 
 process_data ()
