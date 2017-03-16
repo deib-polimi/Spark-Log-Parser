@@ -19,7 +19,7 @@ SOURCE="$0"
 while [ -L "$SOURCE" ]; do
     DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
     SOURCE="$(readlink "$SOURCE")"
-    [ "${SOURCE:0:1}" != / ] && SOURCE="$DIR/$SOURCE"
+    [ "${SOURCE%${SOURCE#?}}" != / ] && SOURCE="$DIR/$SOURCE"
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
@@ -30,7 +30,10 @@ set +a
 
 error_aux ()
 {
-    echo $0: $1: ${@:2} >&2
+    script="$(basename "$0")"
+    line="$1"
+    shift
+    echo $script: $line: $@ >&2
     exit 1
 }
 alias error='error_aux $LINENO '
@@ -78,14 +81,18 @@ if [ ! -d "$1" ]; then
 fi
 
 
+EXPERIMENT_REGEX='[0-9]+_[0-9]+_[0-9]+G_[.0-9]+'
+
 parse_configuration ()
 {
-    EXPERIMENT=$(echo $1 | tr / '\n' | grep -E '[0-9]+_[0-9]+_[0-9]+G_[.0-9]+')
+    EXPERIMENT=$(echo $1 | tr / '\n' | grep -E "$EXPERIMENT_REGEX")
     EXECUTORS=$(echo $EXPERIMENT | awk -F _ '{ print $1 }')
     CORES=$(echo $EXPERIMENT | awk -F _ '{ print $2 }')
     MEMORY=$(echo $EXPERIMENT | awk -F _ '{ print $3 }')
     DATASIZE=$(echo $EXPERIMENT | awk -F _ '{ print $4 }')
-    TOTAL_CORES=$(expr $EXECUTORS \* $CORES)
+    TOTAL_CORES=$(( $EXECUTORS * $CORES ))
+    QUERY="$(echo $1 | tr / '\n' | grep -A 1 -E "$EXPERIMENT_REGEX" | \
+             grep -v -E "$EXPERIMENT_REGEX")"
 }
 
 build_lua_file ()
@@ -112,8 +119,8 @@ process_data ()
         unzip -u -o "$filename" -d "$dir"
     done
 
-    results_file="$1/ubertable.csv"
-    echo Run, Executors, Total Cores, Memory, Datasize > "$results_file"
+    results_file="$root/ubertable.csv"
+    echo Run, Query, Executors, Total Cores, Memory, Datasize > "$results_file"
 
     find "$root" -type f | grep -E "$APP_REGEX" \
         | while IFS= read -r filename; do
@@ -123,8 +130,8 @@ process_data ()
 
             if [ "x$app_id" = "x$(basename "$filename")" ]; then
                 parse_configuration "$filename"
-                echo $app_id, $EXECUTORS, $TOTAL_CORES, $MEMORY, $DATASIZE \
-                     >> "$results_file"
+                echo $app_id, $QUERY, $EXECUTORS, $TOTAL_CORES, $MEMORY, \
+                     $DATASIZE >> "$results_file"
 
                 dir="$(dirname "$filename")"
                 newdir="$dir/${app_id}_csv"
@@ -135,6 +142,39 @@ process_data ()
             fi
         fi
     done
+
+    tail -n +2 "$results_file" | cut -d , -f 2 \
+        | sed -e 's/^[[:space:]]*//g' -e 's/[[:space:]]*$//g' \
+        | sort | uniq | while IFS= read -r query; do
+
+        find "$root" -type d -name "$query" | grep -E "$EXPERIMENT_REGEX" \
+            | while IFS= read -r dir; do
+
+            relquerydir="$dir/empirical"
+            mkdir -p "$relquerydir"
+            querydir="$(cd -P -- "$relquerydir" && pwd)"
+
+            # Now $dir contains the runs of a given query and configuration
+            find "$dir" -type f -name '*.txt' | grep -v empirical \
+                | while IFS= read -r filename; do
+
+                base="$(basename "$filename")"
+                cat "$filename" >> "$querydir/$base"
+            done
+
+            # This is not an actual loop, in case you wondered.
+            find "$dir" -type f -name '*.lua.template' | grep -e "$query" \
+                | grep -v empirical | head -n 1 \
+                | while IFS= read -r filename; do
+
+                indir="$(dirname "$filename")"
+                absdir="$(cd -P -- "$indir" && pwd)"
+                template="$querydir/${query}.lua.template"
+                cat "$filename" | sed -e "s#${absdir}#${querydir}#g" \
+                                      -e 's/replay/empirical/g' > "$template"
+            done
+        done
+    done
 }
 
 simulate_all ()
@@ -142,21 +182,23 @@ simulate_all ()
     root="$1"
 
     results_file="$root/simulations.csv"
-    echo Experiment, Run, Sim Avg, Sim Dev, Sim Lower, \
+    echo Experiment, Query, Run, Sim Avg, Sim Dev, Sim Lower, \
          Sim Upper, Sim Accuracy > "$results_file"
 
-    find "$root" -type d -name '*_csv' | grep -E "$APP_REGEX" \
-        | while IFS= read -r dir; do
+    find "$root" -type f -name '*.lua.template' \
+        | while IFS= read -r filename; do
 
-        filename="$(echo "$dir" | grep -E -o "$APP_REGEX")"
+        base="$(basename "$filename")"
+        noext="${base%.lua.template}"
 
+        dir="$(dirname "$filename")"
         absdir="$(cd -P -- "$dir" && pwd)"
         outfile="$absdir/tmp.txt"
         trap "rm -f \'$outfile\'; exit 130" INT TERM
 
-        echo Simulating $filename
-        luafile="$absdir/$filename.lua"
-        cat "$luafile".template | \
+        echo Simulating $noext
+        luafile="$absdir/$noext.lua"
+        cat "$filename" | \
             sed -e "s#@@MAXJOBS@@#$DAGSIM_MAXJOBS#g" \
                 -e "s#@@COEFF@@#$DAGSIM_CONFINTCOEFF#g" \
                 > "$luafile"
@@ -173,7 +215,7 @@ simulate_all ()
         accuracy="$(echo $results_line | awk '{ print $NF }')"
 
         parse_configuration "$dir"
-        echo $EXPERIMENT, $filename, ${avg:-error}, ${dev:-error}, \
+        echo $EXPERIMENT, "$QUERY", $noext, ${avg:-error}, ${dev:-error}, \
              ${lower:-error}, ${upper:-error}, \
              ${accuracy:-error} >> "$results_file"
         echo Finished
@@ -181,6 +223,10 @@ simulate_all ()
 }
 
 
-## If you reach this point unscathed, you are sure you can do something.
-test "x$PROCESS" = xyes && process_data "$1"
-test "x$SIMULATE" = xyes && simulate_all "$1"
+if [ "x$PROCESS" = xyes ]; then
+    process_data "$1"
+fi
+
+if [ "x$SIMULATE" = xyes ]; then
+    simulate_all "$1"
+fi
