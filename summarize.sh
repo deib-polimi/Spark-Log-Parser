@@ -81,6 +81,13 @@ process_data ()
         parse_configuration "$dir"
         python "$DIR/summary/extractor.py" "$APP_REGEX" "$dir" "$USERS" \
                "$DATASIZE" "$TOTAL_CORES"
+
+        application="$(basename "$dir")"
+        {
+            echo Application class: $application
+            cat "$dir/summary.csv"
+        } > "$dir/aux.csv"
+        mv "$dir/aux.csv" "$dir/summary.csv"
     done
 }
 
