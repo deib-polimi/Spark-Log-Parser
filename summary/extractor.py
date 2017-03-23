@@ -239,7 +239,7 @@ def directoryScan(regex, directory, users, datasize, totCores):
     headerCond = True
     rx = re.compile(regex)
 
-    for index, fileName in enumerate(os.listdir(directory+"/logs")):
+    for fileName in os.listdir(directory+"/logs"):
         path = directory+"/logs/"+fileName
 
         if os.path.isdir(path) and rx.match(fileName):

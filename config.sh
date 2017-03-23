@@ -12,8 +12,10 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
-# Extended regular expression to match application IDs
-APP_REGEX='app(lication)?[-_][0-9]+[-_][0-9]+'
+# Extended regular expression to match application IDs.
+# It must be edible also by Python, because 'summary/extractor.py'
+# uses it as well.
+APP_REGEX='(app(lication)?[-_][0-9]+[-_][0-9]+)|(\w+-\w+-\w+-\w+-\w+-[0-9]+)'
 
 ## DAGSIM parameters
 ## These apply only to process_logs.sh
