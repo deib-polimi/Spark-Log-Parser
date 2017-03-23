@@ -27,6 +27,7 @@ class Parser:
         self.jobsFile = jobsFile
         self.stagesRelFile = stagesRelfile
         self.stagesFile = stagesFile
+        self.availableIDs = None
 
         map(lambda x: self.fileValidation(x), [jobsFile, stagesFile, stagesRelfile])
         self.parseJobs()
@@ -168,6 +169,7 @@ class Parser:
         """Build parent-child dependencies among stages in the context of a single job."""
         with open(self.stagesRelFile, "r") as infile:
             rows = self.orderStages(csv.DictReader(infile))
+            self.availableIDs = [r["Stage ID"] for r in rows]
             stagesMap = {}
 
             for row in rows:
@@ -177,6 +179,8 @@ class Parser:
 
                 if len(parents) == 1 and parents[0] == '':
                     parents = []
+
+                parents = [p for p in parents if p in self.availableIDs]
 
                 stagesMap[stageId] = {
                     "parents": parents,
@@ -200,8 +204,10 @@ class Parser:
         newMap = []
 
         """For each job retrieve the first stages and the last stages"""
-        for key,job in self.jobsMap.iteritems():
-            for stage in job["stages"]:
+        for key, job in self.jobsMap.iteritems():
+            cleanStages = (s for s in job["stages"] if s in self.availableIDs)
+
+            for stage in cleanStages:
                 stagesMap[stage]["name"] = "J"+key+stagesMap[stage]["name"]
 
                 if len(stagesMap[stage]["children"]) == 0:

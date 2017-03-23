@@ -26,6 +26,7 @@ class Extractor:
         self.containers = containers
         self.appStartTime = None
         self.appEndTime = None
+        self.availableIDs = None
         self.minTaskLaunchTime = 0
         self.users = users
         self.memory = memory
@@ -92,7 +93,8 @@ class Extractor:
 
             while i < len(jobsRows):
                 completionTime = int(jobsRows[i + 1]["Completion Time"]) - int(jobsRows[i]["Submission Time"])
-                stages = jobsRows[i]["Stage IDs"][1:(len(jobsRows[i]["Stage IDs"]) - 1)].split(", ")
+                dirtyStages = jobsRows[i]["Stage IDs"][1:(len(jobsRows[i]["Stage IDs"]) - 1)].split(", ")
+                stages = [s for s in dirtyStages if s in self.availableIDs]
 
                 if self.stagesLen == 0:
                     self.stagesLen = len(stages)
@@ -135,11 +137,17 @@ class Extractor:
     def run(self):
         tasksFile = self.directory + "/tasks_1.csv"
         jobsFile = self.directory + "/jobs_1.csv"
+        stagesFile = self.directory + "/stages_1.csv"
 
         self.retrieveApplicationTime()
 
+        with open(stagesFile, "r") as infile:
+            rows = self.orderStages(csv.DictReader(infile))
+            self.availableIDs = [r["Stage ID"] for r in rows]
+
         with open(tasksFile, "r") as f:
-            self.stagesRows = self.orderStages(csv.DictReader(f))
+            stagesRows = self.orderStages(csv.DictReader(f))
+            self.stagesRows = [r for r in stagesRows if r["Stage ID"] in self.availableIDs]
             self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
 
         self.jobsList = self.retrieveJobs(jobsFile)
