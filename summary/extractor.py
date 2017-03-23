@@ -1,3 +1,4 @@
+## Copyright 2017 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ## Copyright 2017 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,7 +40,7 @@ class Extractor:
         self.terminalCsvHeaders = ['users', 'dataSize', 'nContainers']
         self.directory = filesDirectory
         self.directoryName = os.path.basename(filesDirectory)
-        self.directoryName = self.directoryName[:len(self.directoryName) - 4]
+        self.directoryName = self.directoryName[:-4]
         self.summaryDirectory = directory
         self.stagesRows = None
         self.stagesTasksList = []
@@ -47,117 +48,139 @@ class Extractor:
         self.stagesLen = 0
         self.headerFlag = headerFlag
 
-    """
-    Writes the header of the csv file this python script produces
-    """
+
     def writeHeader(self):
+        """Write the header of the csv file this python script produces."""
         with open(self.summaryDirectory+"/summary.csv", 'w') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             targetHeaders = []
             targetHeaders += self.applicationCsvHeaders
+
             for job in self.jobsList:
                 targetHeaders += self.jobCsvHeaders
+
                 for stage in job[2]:
                     targetHeaders += self.stagesCsvHeaders
+
             targetHeaders += self.terminalCsvHeaders
             writer.writerow(targetHeaders)
+
 
     def produceFile(self, finalList):
         with open(self.summaryDirectory+"/summary.csv", 'a') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             writer.writerow(finalList)
 
+
     def retrieveApplicationTime(self):
         with open(self.directory+"/app_1.csv","r") as f:
-            app_rows = csv.DictReader(f)
-            for index,row in enumerate(app_rows):
-                if index==0:
+            appRows = csv.DictReader(f)
+
+            for index, row in enumerate(appRows):
+                if index == 0:
                     self.appStartTime = int(row["Timestamp"])
-                elif index==1:
+                elif index == 1:
                     self.appEndTime = int(row["Timestamp"])
 
-    def retrieve_jobs(self, jobs_file):
-        with open(jobs_file, "r") as f:
+
+    def retrieveJobs(self, jobsFile):
+        with open(jobsFile, "r") as f:
             targetList = []
-            jobs_rows = sorted(csv.DictReader(f), key=lambda x: x["Job ID"])
+            jobsRows = sorted(csv.DictReader(f), key=lambda x: x["Job ID"])
             i = 0
             max_ = 0
-            while i < len(jobs_rows):
-                completionTime = int(jobs_rows[i + 1]["Completion Time"]) - int(jobs_rows[i]["Submission Time"])
-                stages = jobs_rows[i]["Stage IDs"][1:(len(jobs_rows[i]["Stage IDs"]) - 1)].split(", ")
-                if(self.stagesLen == 0):
+
+            while i < len(jobsRows):
+                completionTime = int(jobsRows[i + 1]["Completion Time"]) - int(jobsRows[i]["Submission Time"])
+                stages = jobsRows[i]["Stage IDs"][1:(len(jobsRows[i]["Stage IDs"]) - 1)].split(", ")
+
+                if self.stagesLen == 0:
                     self.stagesLen = len(stages)
-                targetList.append([jobs_rows[i]["Job ID"], completionTime, stages])
+
+                targetList.append([jobsRows[i]["Job ID"], completionTime, stages])
                 i += 2
+
         return targetList
 
-    """
-    Compares the number of jobs/stages of this application with
-    the ones of all the applications processed before
-    """
 
-    def produce_final_list(self):
+    def produceFinalList(self):
+        """Compare the number of jobs/stages of this application with
+        the ones of all the applications processed before.
+        """
         finalList = [];
         batch = []
         normalizedMaxStageCardinality = len(self.jobCsvHeaders)+self.stagesLen*len(self.stagesCsvHeaders)
         finalList.append(self.directoryName)
         finalList.append(self.appEndTime - self.appStartTime)
-        finalList.append(self.minTaskLaunchTime-self.appStartTime)
+        finalList.append(self.minTaskLaunchTime - self.appStartTime)
+
         for job in self.jobsList:
             batch.append(job[0])
             batch.append(job[1])
+
             for stageItem in self.stagesTasksList:
                 if stageItem["stageId"] in job[2]:
                     batch = batch + [stageItem["stageId"]] + stageItem.values()[1:]
+
             finalList += batch
             batch = []
+
         finalList.append(self.users)
         finalList.append(self.memory)
         finalList.append(self.containers)
 
         return finalList
 
+
     def run(self):
-        tasks_file = self.directory + "/tasks_1.csv"
-        jobs_file = self.directory + "/jobs_1.csv"
+        tasksFile = self.directory + "/tasks_1.csv"
+        jobsFile = self.directory + "/jobs_1.csv"
 
         self.retrieveApplicationTime()
-        with open(tasks_file, "r") as f:
+
+        with open(tasksFile, "r") as f:
             self.stagesRows = self.orderStages(csv.DictReader(f))
             self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
-        self.jobsList = self.retrieve_jobs(jobs_file)
-        self.jobsCardinality = len(self.jobsList)
-        if self.headerFlag == True:
-            self.writeHeader()
-        self.buildstagesTasksList()
-        self.produceFile(self.produce_final_list())
 
-    """Checks the existence of the given file path"""
+        self.jobsList = self.retrieveJobs(jobsFile)
+        self.jobsCardinality = len(self.jobsList)
+
+        if self.headerFlag:
+            self.writeHeader()
+
+        self.buildStagesTasksList()
+        self.produceFile(self.produceFinalList())
+
 
     def fileValidation(self, filename):
-        if not (os.path.exists(filename)):
+        """Check the existence of the given file path."""
+        if not os.path.exists(filename):
             print("The file " + filename + " does not exists")
-            exit(-1)
+            sys.exit(1)
 
-    """Orders the stages dict by 'Stage Id'"""
 
     def orderStages(self, stages):
+        """Order the stages dict by 'Stage Id'."""
         return sorted(stages, key=lambda x: x["Stage ID"])
+
 
     def computeStagesTasksDetails(self, stageId, batch):
         shuffleBatch = []
         normalBatch = []
         bytesBatch = []
+
         for item in batch:
             normalBatch.append(item[0])
             shuffleBatch.append(item[1])
             bytesBatch.append(item[2])
+
         maxTask = max(normalBatch)
         maxShuffle = max(shuffleBatch)
         avgTask = reduce(lambda x, y: x + y, normalBatch) / len(normalBatch)
         avgShuffle = reduce(lambda x, y: x + y, shuffleBatch) / len(shuffleBatch)
         maxBytes = max(bytesBatch)
         avgBytes = reduce(lambda x, y: x + y, bytesBatch) / len(bytesBatch)
+
         targetDict = OrderedDict({})
         targetDict["stageId"] = stageId
         targetDict["nTask"] = len(batch)
@@ -167,41 +190,50 @@ class Extractor:
         targetDict["SHavg"] = avgShuffle
         targetDict["Bmax"] = maxBytes
         targetDict["Bavg"] = avgBytes
+
         return targetDict
 
-    def buildstagesTasksList(self):
+
+    def buildStagesTasksList(self):
         batch = []
         lastRow = None
+
         for row in self.stagesRows:
             if lastRow != None and lastRow["Stage ID"] != row["Stage ID"]:
                 self.stagesTasksList.append(self.computeStagesTasksDetails(lastRow["Stage ID"], batch))
                 batch = []
+
             if row["Shuffle Write Time"] == "NOVAL":
                 batch.append([int(row["Executor Run Time"]), -1, -1])
             else:
                 batch.append(
                     [int(row["Executor Run Time"]), int(row["Shuffle Write Time"]), int(row["Shuffle Bytes Written"])])
+
             lastRow = row
+
         self.stagesTasksList.append(self.computeStagesTasksDetails(lastRow["Stage ID"], batch))
+
 
 def directoryScan(regex, directory, users, datasize, totCores):
     headerCond = True
     rx = re.compile(regex)
+
     for index, fileName in enumerate(os.listdir(directory+"/logs")):
         path = directory+"/logs/"+fileName
-        if(os.path.isdir(path) and rx.match(fileName)):
+
+        if os.path.isdir(path) and rx.match(fileName):
             Extractor(directory,path,users,datasize,totCores,headerCond).run()
-            if(headerCond == True):
-                headerCond = False;
 
-
+            if headerCond:
+                headerCond = False
 
 
 def main():
     args = sys.argv
+
     if len(args) != 6:
         print("Required args: [REGEX] [QUERY DIRECTORY] [USERS] [DATASIZE] [TOT CORES]")
-        exit(-1)
+        sys.exit(2)
     else:
         directoryScan(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]))
 
