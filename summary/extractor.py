@@ -32,13 +32,6 @@ class Extractor:
         self.memory = memory
         self.jobsCardinality = 0;
         self.maxJobsCardinality = 0;
-        self.applicationCsvHeaders = ['run','applicationCompletionTime','ApplicationDeltaBeforeComputing']
-        self.jobCsvHeaders = ['jobId', 'JobCompletionTime']
-        #This headers must be repetead as many times as the maximum number of stages
-        #among all the jobs
-        self.stagesCsvHeaders = ['stageId','nTask', 'maxTask', 'avgTask', 'SHmax', 'SHavg', 'Bmax', 'Bavg']
-        ##
-        self.terminalCsvHeaders = ['users', 'dataSize', 'nContainers']
         self.directory = filesDirectory
         self.directoryName = os.path.basename(filesDirectory)
         self.directoryName = self.directoryName[:-4]
@@ -51,19 +44,37 @@ class Extractor:
 
 
     def writeHeader(self):
-        """Write the header of the csv file this python script produces."""
+        """Write the header of the CSV file this python script produces."""
+        applicationCsvHeaders = ['run', 'applicationCompletionTime',
+                                 'applicationDeltaBeforeComputing']
+        jobCsvHeaders = ['jobCompletionTime_J{job}']
+        stagesCsvHeaders = ['nTask_J{job}_S{stage}', 'maxTask_J{job}_S{stage}',
+                            'avgTask_J{job}_S{stage}']
+        shuffleCsvHeaders = ['SHmax_J{job}_S{stage}', 'SHavg_J{job}_S{stage}',
+                             'Bmax_J{job}_S{stage}', 'Bavg_J{job}_S{stage}']
+        terminalCsvHeaders = ['users', 'dataSize', 'nContainers']
+
+        targetHeaders = []
+        targetHeaders += applicationCsvHeaders
+
+        for job in self.jobsList:
+            jobID = job[0]
+            targetHeaders += [h.format(job = jobID) for h in jobCsvHeaders]
+
+            for stage in job[2]:
+                targetHeaders += [h.format(job = jobID, stage = stage)
+                                  for h in stagesCsvHeaders]
+
+                stageIdx = int(stage)
+
+                if "SHmax" in self.stagesTasksList[stageIdx]:
+                    targetHeaders += [h.format(job = jobID, stage = stage)
+                                      for h in shuffleCsvHeaders]
+
+        targetHeaders += terminalCsvHeaders
+
         with open(self.summaryDirectory+"/summary.csv", 'w') as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
-            targetHeaders = []
-            targetHeaders += self.applicationCsvHeaders
-
-            for job in self.jobsList:
-                targetHeaders += self.jobCsvHeaders
-
-                for stage in job[2]:
-                    targetHeaders += self.stagesCsvHeaders
-
-            targetHeaders += self.terminalCsvHeaders
             writer.writerow(targetHeaders)
 
 
@@ -107,25 +118,22 @@ class Extractor:
 
     def produceFinalList(self):
         """Compare the number of jobs/stages of this application with
-        the ones of all the applications processed before.
+           the ones of all the applications processed before.
         """
-        finalList = [];
-        batch = []
-        normalizedMaxStageCardinality = len(self.jobCsvHeaders)+self.stagesLen*len(self.stagesCsvHeaders)
+        finalList = []
+
         finalList.append(self.directoryName)
         finalList.append(self.appEndTime - self.appStartTime)
         finalList.append(self.minTaskLaunchTime - self.appStartTime)
 
         for job in self.jobsList:
-            batch.append(job[0])
-            batch.append(job[1])
+            batch = [job[1]]
 
             for stageItem in self.stagesTasksList:
                 if stageItem["stageId"] in job[2]:
-                    batch = batch + [stageItem["stageId"]] + stageItem.values()[1:]
+                    batch += stageItem.values()[1:]
 
             finalList += batch
-            batch = []
 
         finalList.append(self.users)
         finalList.append(self.memory)
@@ -153,10 +161,11 @@ class Extractor:
         self.jobsList = self.retrieveJobs(jobsFile)
         self.jobsCardinality = len(self.jobsList)
 
+        self.buildStagesTasksList()
+
         if self.headerFlag:
             self.writeHeader()
 
-        self.buildStagesTasksList()
         self.produceFile(self.produceFinalList())
 
 
@@ -184,20 +193,24 @@ class Extractor:
 
         maxTask = max(normalBatch)
         maxShuffle = max(shuffleBatch)
-        avgTask = reduce(lambda x, y: x + y, normalBatch) / len(normalBatch)
-        avgShuffle = reduce(lambda x, y: x + y, shuffleBatch) / len(shuffleBatch)
+        avgTask = sum(normalBatch) / len(normalBatch)
+        avgShuffle = sum(shuffleBatch) / len(shuffleBatch)
         maxBytes = max(bytesBatch)
-        avgBytes = reduce(lambda x, y: x + y, bytesBatch) / len(bytesBatch)
+        avgBytes = sum(bytesBatch) / len(bytesBatch)
 
         targetDict = OrderedDict({})
         targetDict["stageId"] = stageId
         targetDict["nTask"] = len(batch)
         targetDict["maxTask"] = maxTask
         targetDict["avgTask"] = avgTask
-        targetDict["SHmax"] = maxShuffle
-        targetDict["SHavg"] = avgShuffle
-        targetDict["Bmax"] = maxBytes
-        targetDict["Bavg"] = avgBytes
+
+        # If one is negative (because it was missing in the logs),
+        # all are negative.
+        if maxShuffle >= 0:
+            targetDict["SHmax"] = maxShuffle
+            targetDict["SHavg"] = avgShuffle
+            targetDict["Bmax"] = maxBytes
+            targetDict["Bavg"] = avgBytes
 
         return targetDict
 
