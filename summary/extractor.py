@@ -15,10 +15,12 @@
 
 from __future__ import division
 from collections import OrderedDict
-import os
+from operator import itemgetter
+
 import csv
-import sys
+import os
 import re
+import sys
 
 
 class Extractor:
@@ -104,8 +106,8 @@ class Extractor:
 
             while i < len(jobsRows):
                 completionTime = int(jobsRows[i + 1]["Completion Time"]) - int(jobsRows[i]["Submission Time"])
-                dirtyStages = jobsRows[i]["Stage IDs"][1:(len(jobsRows[i]["Stage IDs"]) - 1)].split(", ")
-                stages = [s for s in dirtyStages if s in self.availableIDs]
+                dirtyStages = jobsRows[i]["Stage IDs"][1:-1].split(", ")
+                stages = sorted (s for s in dirtyStages if s in self.availableIDs)
 
                 if self.stagesLen == 0:
                     self.stagesLen = len(stages)
@@ -233,6 +235,7 @@ class Extractor:
             lastRow = row
 
         self.stagesTasksList.append(self.computeStagesTasksDetails(lastRow["Stage ID"], batch))
+        self.stagesTasksList.sort(key = itemgetter ("stageId"))
 
 
 def directoryScan(regex, directory, users, datasize, totCores):
