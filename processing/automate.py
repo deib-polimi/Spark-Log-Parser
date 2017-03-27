@@ -170,7 +170,12 @@ class Parser:
         with open(self.stagesRelFile, "r") as infile:
             rows = self.orderStages(csv.DictReader(infile))
             self.availableIDs = [r["Stage ID"] for r in rows]
-            stagesMap = {}
+            stagesMap = {r["Stage ID"]: {
+                "parents": None,
+                "children": [],
+                "tasks": r["Number of Tasks"],
+                "name": "S{}".format (r["Stage ID"])
+            } for r in rows}
 
             for row in rows:
                 parentIds = row["Parent IDs"]
@@ -180,14 +185,9 @@ class Parser:
                 if len(parents) == 1 and parents[0] == '':
                     parents = []
 
-                parents = [p for p in parents if p in self.availableIDs]
+                parents = sorted (p for p in parents if p in self.availableIDs)
 
-                stagesMap[stageId] = {
-                    "parents": parents,
-                    "children": [],
-                    "tasks": row["Number of Tasks"],
-                    "name": "S"+stageId
-                }
+                stagesMap[stageId]["parents"] = parents
 
                 for parent in parents:
                     stagesMap[parent]["children"].append(stageId)

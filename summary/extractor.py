@@ -39,7 +39,7 @@ class Extractor:
         self.directoryName = self.directoryName[:-4]
         self.summaryDirectory = directory
         self.stagesRows = None
-        self.stagesTasksList = []
+        self.stagesTasksDict = {}
         self.jobsList = []
         self.stagesLen = 0
         self.headerFlag = headerFlag
@@ -67,9 +67,7 @@ class Extractor:
                 targetHeaders += [h.format(job = jobID, stage = stage)
                                   for h in stagesCsvHeaders]
 
-                stageIdx = int(stage)
-
-                if "SHmax" in self.stagesTasksList[stageIdx]:
+                if "SHmax" in self.stagesTasksDict[stage]:
                     targetHeaders += [h.format(job = jobID, stage = stage)
                                       for h in shuffleCsvHeaders]
 
@@ -131,8 +129,8 @@ class Extractor:
         for job in self.jobsList:
             batch = [job[1]]
 
-            for stageItem in self.stagesTasksList:
-                if stageItem["stageId"] in job[2]:
+            for stageId, stageItem in self.stagesTasksDict.iteritems ():
+                if stageId in job[2]:
                     batch += stageItem.values()[1:]
 
             finalList += batch
@@ -163,7 +161,7 @@ class Extractor:
         self.jobsList = self.retrieveJobs(jobsFile)
         self.jobsCardinality = len(self.jobsList)
 
-        self.buildStagesTasksList()
+        self.buildStagesTasksDict()
 
         if self.headerFlag:
             self.writeHeader()
@@ -217,13 +215,14 @@ class Extractor:
         return targetDict
 
 
-    def buildStagesTasksList(self):
+    def buildStagesTasksDict(self):
         batch = []
         lastRow = None
 
         for row in self.stagesRows:
             if lastRow != None and lastRow["Stage ID"] != row["Stage ID"]:
-                self.stagesTasksList.append(self.computeStagesTasksDetails(lastRow["Stage ID"], batch))
+                stageId = lastRow["Stage ID"]
+                self.stagesTasksDict[stageId] = self.computeStagesTasksDetails(stageId, batch)
                 batch = []
 
             if row["Shuffle Write Time"] == "NOVAL":
@@ -234,8 +233,8 @@ class Extractor:
 
             lastRow = row
 
-        self.stagesTasksList.append(self.computeStagesTasksDetails(lastRow["Stage ID"], batch))
-        self.stagesTasksList.sort(key = itemgetter ("stageId"))
+        stageId = lastRow["Stage ID"]
+        self.stagesTasksDict[stageId] = self.computeStagesTasksDetails(stageId, batch)
 
 
 def directoryScan(regex, directory, users, datasize, totCores):
