@@ -50,10 +50,10 @@ class Extractor:
         applicationCsvHeaders = ['run', 'applicationCompletionTime',
                                  'applicationDeltaBeforeComputing']
         jobCsvHeaders = ['jobCompletionTime_J{job}']
-        stagesCsvHeaders = ['nTask_J{job}_S{stage}', 'maxTask_J{job}_S{stage}',
-                            'avgTask_J{job}_S{stage}']
-        shuffleCsvHeaders = ['SHmax_J{job}_S{stage}', 'SHavg_J{job}_S{stage}',
-                             'Bmax_J{job}_S{stage}', 'Bavg_J{job}_S{stage}']
+        stagesCsvHeaders = ['nTask_J{job}S{stage}', 'maxTask_J{job}S{stage}',
+                            'avgTask_J{job}S{stage}']
+        shuffleCsvHeaders = ['SHmax_J{job}S{stage}', 'SHavg_J{job}S{stage}',
+                             'Bmax_J{job}S{stage}', 'Bavg_J{job}S{stage}']
         terminalCsvHeaders = ['users', 'dataSize', 'nContainers']
 
         targetHeaders = []
