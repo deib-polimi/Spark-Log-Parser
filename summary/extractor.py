@@ -40,7 +40,7 @@ class Extractor:
         self.summaryDirectory = directory
         self.stagesRows = None
         self.stagesTasksDict = {}
-        self.jobsList = []
+        self.jobsDict = {}
         self.stagesLen = 0
         self.headerFlag = headerFlag
 
@@ -59,16 +59,15 @@ class Extractor:
         targetHeaders = []
         targetHeaders += applicationCsvHeaders
 
-        for job in self.jobsList:
-            jobID = job[0]
+        for jobID, job in self.jobsDict.iteritems ():
             targetHeaders += [h.format(job = jobID) for h in jobCsvHeaders]
 
-            for stage in job[2]:
-                targetHeaders += [h.format(job = jobID, stage = stage)
+            for stageID in job["stages"]:
+                targetHeaders += [h.format(job = jobID, stage = stageID)
                                   for h in stagesCsvHeaders]
 
-                if "SHmax" in self.stagesTasksDict[stage]:
-                    targetHeaders += [h.format(job = jobID, stage = stage)
+                if "SHmax" in self.stagesTasksDict[stageID]:
+                    targetHeaders += [h.format(job = jobID, stage = stageID)
                                       for h in shuffleCsvHeaders]
 
         targetHeaders += terminalCsvHeaders
@@ -96,24 +95,24 @@ class Extractor:
 
 
     def retrieveJobs(self, jobsFile):
+        self.jobsDict = {}
+
         with open(jobsFile, "r") as f:
-            targetList = []
             jobsRows = sorted(csv.DictReader(f), key=lambda x: x["Job ID"])
-            i = 0
-            max_ = 0
 
-            while i < len(jobsRows):
-                completionTime = int(jobsRows[i + 1]["Completion Time"]) - int(jobsRows[i]["Submission Time"])
-                dirtyStages = jobsRows[i]["Stage IDs"][1:-1].split(", ")
-                stages = sorted (s for s in dirtyStages if s in self.availableIDs)
+        i = 0
 
-                if self.stagesLen == 0:
-                    self.stagesLen = len(stages)
+        while i < len(jobsRows):
+            thisRow = jobsRows[i]
+            completionTime = int(jobsRows[i + 1]["Completion Time"]) - int(thisRow["Submission Time"])
+            dirtyStages = thisRow["Stage IDs"][1:-1].split(", ")
+            stages = sorted (s for s in dirtyStages if s in self.availableIDs)
 
-                targetList.append([jobsRows[i]["Job ID"], completionTime, stages])
-                i += 2
+            if self.stagesLen == 0:
+                self.stagesLen = len(stages)
 
-        return targetList
+            self.jobsDict[thisRow["Job ID"]] = {"completion": completionTime, "stages": stages}
+            i += 2
 
 
     def produceFinalList(self):
@@ -126,12 +125,11 @@ class Extractor:
         finalList.append(self.appEndTime - self.appStartTime)
         finalList.append(self.minTaskLaunchTime - self.appStartTime)
 
-        for job in self.jobsList:
-            batch = [job[1]]
+        for jobId, job in self.jobsDict.iteritems ():
+            batch = [job["completion"]]
 
-            for stageId, stageItem in self.stagesTasksDict.iteritems ():
-                if stageId in job[2]:
-                    batch += stageItem.values()[1:]
+            for stageId in job["stages"]:
+                batch += self.stagesTasksDict[stageId].values ()[1:]
 
             finalList += batch
 
@@ -158,8 +156,8 @@ class Extractor:
             self.stagesRows = [r for r in stagesRows if r["Stage ID"] in self.availableIDs]
             self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
 
-        self.jobsList = self.retrieveJobs(jobsFile)
-        self.jobsCardinality = len(self.jobsList)
+        self.retrieveJobs(jobsFile)
+        self.jobsCardinality = len(self.jobsDict)
 
         self.buildStagesTasksDict()
 
