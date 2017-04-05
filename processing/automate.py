@@ -23,19 +23,21 @@ import os
 class Parser:
     def __init__(self, jobsFile, stagesFile, stagesRelfile, targetDirectory):
         self.targetDirectory = targetDirectory
-        self.stageJobMap = {}
-        self.stagesRows = []
         self.jobsMap = {}
         self.jobsFile = jobsFile
         self.stagesRelFile = stagesRelfile
         self.stagesFile = stagesFile
         self.availableIDs = None
+        self.stagesRows = None
 
-        map(lambda x: self.fileValidation(x), [jobsFile, stagesFile, stagesRelfile])
+
+    def run(self):
+        map(lambda x: self.fileValidation(x), [self.jobsFile, self.stagesFile, self.stagesRelFile])
+
         self.parseJobs()
         self.buildJobHierarchy()
 
-        with open(stagesFile, "r") as infile:
+        with open(self.stagesFile, "r") as infile:
             self.stagesRows = self.orderStages(csv.DictReader(infile))
 
         self.buildTimeFiles()
@@ -65,11 +67,8 @@ class Parser:
                 if(stageIds != "NOVAL"):
                     stagesList = self.parseStagesList(stageIds)
 
-                    for stage in stagesList:
-                        self.stageJobMap[stage] = jobId
-
                     self.jobsMap[jobId] = {
-                        "stages": self.parseStagesList(stageIds),
+                        "stages": stagesList,
                         "submissionTime": int(submissionTime),
                         "completionTime": 0,
                         "followers" : [],
@@ -89,7 +88,8 @@ class Parser:
 
     def parseStagesList(self, stagesList):
         """Split correctly a list of stages."""
-        return stagesList[1:-1].split(", ")
+        rawStages = stagesList[1:-1].split(", ")
+        return [s for s in rawStages if s != ""]
 
 
     def buildJobHierarchy(self):
@@ -101,11 +101,11 @@ class Parser:
                 if value["completionTime"] < value_1["submissionTime"] and key != key_1:
                     self.jobsMap[key_1]["parents"].append(key)
 
-        self.buidlComplexJobHierarchy()
+        self.buildComplexJobHierarchy()
         self.decorateWithFollowers(self.jobsMap)
 
 
-    def buidlComplexJobHierarchy(self):
+    def buildComplexJobHierarchy(self):
         """Build a complex job hierarchy from a simple one."""
         counter = 0
         tmp = []
@@ -152,10 +152,13 @@ class Parser:
         """Build .txt files containing the execution time of each task in a stage."""
         batch = []
         lastRow = None
+        template = "{dir}/S{{stage}}.txt".format (dir = self.targetDirectory)
 
         for row in self.stagesRows:
             if lastRow != None and lastRow["Stage ID"] != row["Stage ID"]:
-                with open(self.targetDirectory+"/J"+self.stageJobMap[lastRow["Stage ID"]]+"S"+lastRow["Stage ID"]+".txt","w") as outfile:
+                filename = template.format (stage = lastRow["Stage ID"])
+
+                with open(filename, "w") as outfile:
                     for value in batch:
                         print(value, file = outfile)
 
@@ -164,7 +167,9 @@ class Parser:
             batch.append(row["Executor Run Time"])
             lastRow = row
 
-        with open(self.targetDirectory+"/J"+self.stageJobMap[lastRow["Stage ID"]]+"S"+lastRow["Stage ID"]+".txt","w") as outfile:
+        filename = template.format (stage = lastRow["Stage ID"])
+
+        with open(filename, "w") as outfile:
             for value in batch:
                 print(value, file = outfile)
 
@@ -184,12 +189,8 @@ class Parser:
             for row in rows:
                 parentIds = row["Parent IDs"]
                 stageId = row["Stage ID"]
-                parents = self.parseStagesList(parentIds)
-
-                if len(parents) == 1 and parents[0] == '':
-                    parents = []
-
-                parents = sorted (p for p in parents if p in self.availableIDs)
+                allParents = self.parseStagesList(parentIds)
+                parents = sorted (p for p in allParents if p in self.availableIDs)
 
                 stagesMap[stageId]["parents"] = parents
 
@@ -212,8 +213,6 @@ class Parser:
             cleanStages = (s for s in job["stages"] if s in self.availableIDs)
 
             for stage in cleanStages:
-                stagesMap[stage]["name"] = "J"+key+stagesMap[stage]["name"]
-
                 if len(stagesMap[stage]["children"]) == 0:
                     tmpLast.append(stage)
 
@@ -274,7 +273,8 @@ def main():
         sys.exit(2)
     else:
         parser = Parser(str(args[1]), str(args[2]), str(args[3]), str(args[4])+'/')
+        parser.run ()
 
 
-if(__name__=="__main__"):
+if __name__ == "__main__":
     main()
