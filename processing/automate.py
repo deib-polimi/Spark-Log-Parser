@@ -13,6 +13,8 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
+from __future__ import print_function
+
 import csv
 import sys
 import os
@@ -154,7 +156,8 @@ class Parser:
         for row in self.stagesRows:
             if lastRow != None and lastRow["Stage ID"] != row["Stage ID"]:
                 with open(self.targetDirectory+"/J"+self.stageJobMap[lastRow["Stage ID"]]+"S"+lastRow["Stage ID"]+".txt","w") as outfile:
-                    outfile.write("\n".join(batch))
+                    for value in batch:
+                        print(value, file = outfile)
 
                 batch = []
 
@@ -162,7 +165,8 @@ class Parser:
             lastRow = row
 
         with open(self.targetDirectory+"/J"+self.stageJobMap[lastRow["Stage ID"]]+"S"+lastRow["Stage ID"]+".txt","w") as outfile:
-            outfile.write("\n".join(batch))
+            for value in batch:
+                print(value, file = outfile)
 
 
     def stagesRel(self):
