@@ -32,8 +32,8 @@ class Extractor:
         self.minTaskLaunchTime = 0
         self.users = users
         self.memory = memory
-        self.jobsCardinality = 0;
-        self.maxJobsCardinality = 0;
+        self.jobsCardinality = 0
+        self.maxJobsCardinality = 0
         self.directory = filesDirectory
         self.directoryName = os.path.basename(filesDirectory)
         self.directoryName = self.directoryName[:-4]
@@ -43,6 +43,9 @@ class Extractor:
         self.jobsDict = {}
         self.stagesLen = 0
         self.headerFlag = headerFlag
+        # To enforce always the same order
+        self.jobIDs = None
+        self.stageIDs = None
 
 
     def writeHeader(self):
@@ -50,25 +53,23 @@ class Extractor:
         applicationCsvHeaders = ['run', 'applicationCompletionTime',
                                  'applicationDeltaBeforeComputing']
         jobCsvHeaders = ['jobCompletionTime_J{job}']
-        stagesCsvHeaders = ['nTask_J{job}S{stage}', 'maxTask_J{job}S{stage}',
-                            'avgTask_J{job}S{stage}']
-        shuffleCsvHeaders = ['SHmax_J{job}S{stage}', 'SHavg_J{job}S{stage}',
-                             'Bmax_J{job}S{stage}', 'Bavg_J{job}S{stage}']
+        stagesCsvHeaders = ['nTask_S{stage}', 'maxTask_S{stage}',
+                            'avgTask_S{stage}']
+        shuffleCsvHeaders = ['SHmax_S{stage}', 'SHavg_S{stage}',
+                             'Bmax_S{stage}', 'Bavg_S{stage}']
         terminalCsvHeaders = ['users', 'dataSize', 'nContainers']
 
         targetHeaders = []
         targetHeaders += applicationCsvHeaders
 
-        for jobID, job in self.jobsDict.iteritems ():
+        for jobID in self.jobIDs:
             targetHeaders += [h.format(job = jobID) for h in jobCsvHeaders]
 
-            for stageID in job["stages"]:
-                targetHeaders += [h.format(job = jobID, stage = stageID)
-                                  for h in stagesCsvHeaders]
+        for stageID in self.stageIDs:
+            targetHeaders += [h.format(stage = stageID) for h in stagesCsvHeaders]
 
-                if "SHmax" in self.stagesTasksDict[stageID]:
-                    targetHeaders += [h.format(job = jobID, stage = stageID)
-                                      for h in shuffleCsvHeaders]
+            if "SHmax" in self.stagesTasksDict[stageID]:
+                targetHeaders += [h.format(stage = stageID) for h in shuffleCsvHeaders]
 
         targetHeaders += terminalCsvHeaders
 
@@ -114,6 +115,8 @@ class Extractor:
             self.jobsDict[thisRow["Job ID"]] = {"completion": completionTime, "stages": stages}
             i += 2
 
+        self.jobIDs = sorted (self.jobsDict)
+
 
     def produceFinalList(self):
         """Compare the number of jobs/stages of this application with
@@ -125,13 +128,13 @@ class Extractor:
         finalList.append(self.appEndTime - self.appStartTime)
         finalList.append(self.minTaskLaunchTime - self.appStartTime)
 
-        for jobId, job in self.jobsDict.iteritems ():
-            batch = [job["completion"]]
+        for jobID in self.jobIDs:
+            job = self.jobsDict[jobID]
+            finalList.append(job["completion"])
 
-            for stageId in job["stages"]:
-                batch += self.stagesTasksDict[stageId].values ()[1:]
-
-            finalList += batch
+        for stageID in self.stageIDs:
+            stage = self.stagesTasksDict[stageID]
+            finalList += stage.values ()[1:]
 
         finalList.append(self.users)
         finalList.append(self.memory)
@@ -149,12 +152,14 @@ class Extractor:
 
         with open(stagesFile, "r") as infile:
             rows = self.orderStages(csv.DictReader(infile))
-            self.availableIDs = [r["Stage ID"] for r in rows]
+
+        self.availableIDs = [r["Stage ID"] for r in rows]
 
         with open(tasksFile, "r") as f:
             stagesRows = self.orderStages(csv.DictReader(f))
-            self.stagesRows = [r for r in stagesRows if r["Stage ID"] in self.availableIDs]
-            self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
+
+        self.stagesRows = [r for r in stagesRows if r["Stage ID"] in self.availableIDs]
+        self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
 
         self.retrieveJobs(jobsFile)
         self.jobsCardinality = len(self.jobsDict)
@@ -176,7 +181,7 @@ class Extractor:
 
     def orderStages(self, stages):
         """Order the stages dict by 'Stage Id'."""
-        return sorted(stages, key=lambda x: x["Stage ID"])
+        return sorted (stages, key = itemgetter ("Stage ID"))
 
 
     def computeStagesTasksDetails(self, stageId, batch):
@@ -233,6 +238,7 @@ class Extractor:
 
         stageId = lastRow["Stage ID"]
         self.stagesTasksDict[stageId] = self.computeStagesTasksDetails(stageId, batch)
+        self.stageIDs = sorted (self.stagesTasksDict)
 
 
 def directoryScan(regex, directory, users, datasize, totCores):
