@@ -12,11 +12,12 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
+from __future__ import print_function
+
 import json
 import csv
 import os
 import sys
-
 
 
 class SparkParser:
@@ -24,18 +25,14 @@ class SparkParser:
         if os.path.exists(outputDir):
             self.outputDir = outputDir
         else:
-            print("The inserted output directory does not exists")
-            exit(-1)
+            print("The inserted output directory does not exists", file = sys.stderr)
+            sys.exit(1)
 
         if os.path.exists(filename):
-            try:
-                self.file = open(filename)
-            except:
-                print("Reading error")
-                exit(-1)
+            self.filename = filename
         else:
-            print("The inserted file does not exists")
-            exit(-1)
+            print("The inserted file does not exists", file = sys.stderr)
+            sys.exit(1)
 
         #Class props
         self.appId = appId
@@ -43,6 +40,7 @@ class SparkParser:
         self.stagesCSVInfo = []
         self.jobsCSVInfo = []
         self.appCSVInfo = []
+
         self.stageHeaders = {
             "Stage Info" : [
                 "Stage ID",
@@ -91,15 +89,19 @@ class SparkParser:
                 "Timestamp",
             ]
         }
-        #Business Logic
+
+
+    def run(self):
         print("Start parsing")
         self.parseSwitch()
         print("Start saving files")
         self.produceCSVs()
         print("Finished")
 
+
     def parse(self, data, headers, csvinfo):
         record = []
+
         for field,value in headers.iteritems():
             for sub_field in value:
                 try:
@@ -109,75 +111,81 @@ class SparkParser:
                         record.append(data["Task Metrics"][field][sub_field])
                     else:
                         record.append(data[field][sub_field])
-
                 except KeyError:
                     record.append("NOVAL")
-                    continue
 
         csvinfo.append(record)
 
-    def parseSwitch(self):
-        for line in self.file:
-            try:
-                data = json.loads(line)
-                event = data["Event"]
-                if event == "SparkListenerTaskEnd" and not data["Task Info"]["Failed"]:
-                    self.parse(data,self.tasksHeaders,self.tasksCSVInfo)
-                elif event == "SparkListenerStageCompleted":
-                    self.parse(data,self.stageHeaders,self.stagesCSVInfo)
-                elif event == "SparkListenerJobStart" or event == "SparkListenerJobEnd":
-                    self.parse(data,self.jobHeaders, self.jobsCSVInfo)
-                elif event == "SparkListenerApplicationStart" or event =="SparkListenerApplicationEnd":
-                    self.parse(data,self.applicationHeaders, self.appCSVInfo)
 
-            except Exception as e:
-                print("Error "+str(e))
+    def parseSwitch(self):
+        with open(self.filename) as infile:
+            for line in infile:
+                try:
+                    data = json.loads(line)
+                    event = data["Event"]
+
+                    if event == "SparkListenerTaskEnd" and not data["Task Info"]["Failed"]:
+                        self.parse(data, self.tasksHeaders, self.tasksCSVInfo)
+                    elif event == "SparkListenerStageCompleted":
+                        self.parse(data, self.stageHeaders, self.stagesCSVInfo)
+                    elif event == "SparkListenerJobStart" or event == "SparkListenerJobEnd":
+                        self.parse(data, self.jobHeaders, self.jobsCSVInfo)
+                    elif event == "SparkListenerApplicationStart" or event == "SparkListenerApplicationEnd":
+                        self.parse(data, self.applicationHeaders, self.appCSVInfo)
+
+                except Exception as e:
+                    print("Error "+str(e), file = sys.stderr)
+
 
     def normalizeHeaders(self, headersDict):
         returnList = []
-        for field in headersDict:
-            for subfield in headersDict[field]:
+
+        for inner in headersDict.itervalues ():
+            for subfield in inner:
                 returnList.append(subfield)
 
         return returnList
 
+
     def produceCSVs(self):
         csvTasks = [
             {
-                "file": open(self.outputDir+"/tasks_"+self.appId+".csv","w"),
+                "filename": self.outputDir+"/tasks_"+self.appId+".csv",
                 "records": self.tasksCSVInfo,
                 "headers": self.normalizeHeaders(self.tasksHeaders)
             },
             {
-                "file": open(self.outputDir+"/jobs_"+self.appId+".csv","w"),
+                "filename": self.outputDir+"/jobs_"+self.appId+".csv",
                 "records": self.jobsCSVInfo,
                 "headers": self.normalizeHeaders(self.jobHeaders)
             },
             {
-                "file" : open(self.outputDir+"/stages_"+self.appId+".csv","w"),
+                "filename" : self.outputDir+"/stages_"+self.appId+".csv",
                 "records" : self.stagesCSVInfo,
                 "headers" : self.normalizeHeaders(self.stageHeaders)
             },
             {
-                "file": open(self.outputDir+"/app_"+self.appId+".csv","w"),
+                "filename": self.outputDir+"/app_"+self.appId+".csv",
                 "records": self.appCSVInfo,
                 "headers": self.normalizeHeaders(self.applicationHeaders)
             }
         ]
+
         for item in csvTasks:
-            writer = csv.writer(item["file"], delimiter=',', lineterminator='\n')
-            writer.writerow(item["headers"])
-            for record in item["records"]:
-                writer.writerow(record)
-            item["file"].close()
+            with open(item["filename"], "w") as outfile:
+                writer = csv.writer(outfile, delimiter=',', lineterminator='\n')
+                writer.writerow(item["headers"])
+                writer.writerows(item["records"])
+
 
 def main():
     args = sys.argv
     if len(args) != 4:
-        print("Required args: [LOG_FILE_TO_PARS] [ID_FOR_CSV_NAMING] [OUTPUTDIR]")
-        exit(-1)
+        print("Required args: [LOG_FILE_TO_PARS] [ID_FOR_CSV_NAMING] [OUTPUTDIR]", file = sys.stderr)
+        sys.exit(2)
     else:
-        parser = SparkParser(str(args[1]), str(args[2]), str(args[3]))
+        parser = SparkParser(str(args[1]), str(args[2]), str(args[3])).run()
+
 
 if __name__ == "__main__":
     main()
