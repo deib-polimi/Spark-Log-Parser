@@ -14,8 +14,8 @@
 
 from __future__ import print_function
 
-import json
 import csv
+import json
 import os
 import sys
 
@@ -51,7 +51,14 @@ class SparkParser:
                 "Completion Time"
             ]
         }
-        self.jobHeaders = {"_":["Job ID","Submission Time","Stage IDs","Completion Time"]}
+        self.jobHeaders = {
+            "_" : [
+                "Job ID",
+                "Submission Time",
+                "Stage IDs",
+                "Completion Time"
+            ]
+        }
         self.tasksHeaders = {
             #Default nesting level
             "_" : [
@@ -81,6 +88,9 @@ class SparkParser:
                 "Shuffle Bytes Written",
                 "Shuffle Write Time",
                 "Shuffle Records Written"
+            ],
+            "Task End Reason": [
+                "Reason"
             ]
         }
         self.applicationHeaders = {
@@ -92,27 +102,26 @@ class SparkParser:
 
 
     def run(self):
-        print("Start parsing")
         self.parseSwitch()
-        print("Start saving files")
         self.produceCSVs()
-        print("Finished")
 
 
     def parse(self, data, headers, csvinfo):
-        record = []
+        record = {}
 
-        for field,value in headers.iteritems():
-            for sub_field in value:
+        for field, inner in headers.iteritems ():
+            for subfield in inner:
                 try:
                     if field == "_":
-                        record.append(data[sub_field])
+                        value = data[subfield]
                     elif field == "Shuffle Write Metrics":
-                        record.append(data["Task Metrics"][field][sub_field])
+                        value = data["Task Metrics"][field][subfield]
                     else:
-                        record.append(data[field][sub_field])
+                        value = data[field][subfield]
                 except KeyError:
-                    record.append("NOVAL")
+                    value = "NOVAL"
+
+                record[subfield] = value
 
         csvinfo.append(record)
 
@@ -127,7 +136,12 @@ class SparkParser:
                     if event == "SparkListenerTaskEnd" and not data["Task Info"]["Failed"]:
                         self.parse(data, self.tasksHeaders, self.tasksCSVInfo)
                     elif event == "SparkListenerStageCompleted":
-                        self.parse(data, self.stageHeaders, self.stagesCSVInfo)
+                        if "Failure Reason" in data["Stage Info"]:
+                            print ("Stage {} failed".format (data["Stage Info"]["Stage ID"]),
+                                   file = sys.stderr)
+                            sys.exit (3)
+                        else:
+                            self.parse(data, self.stageHeaders, self.stagesCSVInfo)
                     elif event == "SparkListenerJobStart" or event == "SparkListenerJobEnd":
                         self.parse(data, self.jobHeaders, self.jobsCSVInfo)
                     elif event == "SparkListenerApplicationStart" or event == "SparkListenerApplicationEnd":
@@ -138,13 +152,8 @@ class SparkParser:
 
 
     def normalizeHeaders(self, headersDict):
-        returnList = []
-
-        for inner in headersDict.itervalues ():
-            for subfield in inner:
-                returnList.append(subfield)
-
-        return returnList
+        return [subfield for inner in headersDict.itervalues ()
+                for subfield in inner]
 
 
     def produceCSVs(self):
@@ -172,10 +181,10 @@ class SparkParser:
         ]
 
         for item in csvTasks:
-            with open(item["filename"], "w") as outfile:
-                writer = csv.writer(outfile, delimiter=',', lineterminator='\n')
-                writer.writerow(item["headers"])
-                writer.writerows(item["records"])
+            with open (item["filename"], "w") as outfile:
+                writer = csv.DictWriter (outfile, fieldnames = item["headers"])
+                writer.writeheader ()
+                writer.writerows (item["records"])
 
 
 def main():

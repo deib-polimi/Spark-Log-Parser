@@ -162,16 +162,18 @@ process_data ()
                 cat "$filename" >> "$querydir/$base"
             done
 
-            # This is not an actual loop, in case you wondered.
             find "$dir" -type f -name '*.lua.template' | grep -e "$query" \
-                | grep -v empirical | head -n 1 \
-                | while IFS= read -r filename; do
+                | grep -v empirical | while IFS= read -r filename; do
 
-                indir="$(dirname "$filename")"
-                absdir="$(cd -P -- "$indir" && pwd)"
-                template="$querydir/${query}.lua.template"
-                cat "$filename" | sed -e "s#${absdir}#${querydir}#g" \
-                                      -e 's/replay/empirical/g' > "$template"
+                if ! grep -q 'does not exist' "$filename"; then
+                    indir="$(dirname "$filename")"
+                    absdir="$(cd -P -- "$indir" && pwd)"
+                    template="$querydir/${query}.lua.template"
+                    sed -e "s#${absdir}#${querydir}#g" \
+                        -e 's/replay/empirical/g' "$filename" > "$template"
+                    # Any file will do, provided the processing did not fail
+                    break
+                fi
             done
         done
     done

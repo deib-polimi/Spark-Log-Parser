@@ -175,7 +175,7 @@ class Extractor:
     def fileValidation(self, filename):
         """Check the existence of the given file path."""
         if not os.path.exists(filename):
-            print("The file " + filename + " does not exists")
+            print >> sys.stderr, "The file '{}' does not exists".format (filename)
             sys.exit(1)
 
 
@@ -228,11 +228,13 @@ class Extractor:
                 self.stagesTasksDict[stageId] = self.computeStagesTasksDetails(stageId, batch)
                 batch = []
 
-            if row["Shuffle Write Time"] == "NOVAL":
-                batch.append([int(row["Executor Run Time"]), -1, -1])
-            else:
-                batch.append(
-                    [int(row["Executor Run Time"]), int(row["Shuffle Write Time"]), int(row["Shuffle Bytes Written"])])
+            if row["Reason"] == "Success":
+                if row["Shuffle Write Time"] == "NOVAL":
+                    batch.append([int(row["Executor Run Time"]), -1, -1])
+                else:
+                    batch.append([int(row["Executor Run Time"]),
+                                  int(row["Shuffle Write Time"]),
+                                  int(row["Shuffle Bytes Written"])])
 
             lastRow = row
 
@@ -249,17 +251,18 @@ def directoryScan(regex, directory, users, datasize, totCores):
         path = directory+"/logs/"+fileName
 
         if os.path.isdir(path) and rx.match(fileName):
-            Extractor(directory,path,users,datasize,totCores,headerCond).run()
-
-            if headerCond:
+            try:
+                Extractor (directory, path, users, datasize, totCores, headerCond).run ()
                 headerCond = False
+            except:
+                print >> sys.stderr, "Error with directory '{}'".format (path)
 
 
 def main():
     args = sys.argv
 
     if len(args) != 6:
-        print("Required args: [REGEX] [QUERY DIRECTORY] [USERS] [DATASIZE] [TOT CORES]")
+        print >> sys.stderr, "Required args: [REGEX] [QUERY DIRECTORY] [USERS] [DATASIZE] [TOT CORES]"
         sys.exit(2)
     else:
         directoryScan(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]))
