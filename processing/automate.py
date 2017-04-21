@@ -167,7 +167,12 @@ class Parser:
             batch.append(row["Executor Run Time"])
             lastRow = row
 
-        filename = template.format (stage = lastRow["Stage ID"])
+        if lastRow:
+            filename = template.format (stage = lastRow["Stage ID"])
+        else:
+            print ("error: file '{}' is empty".format (self.stagesFile),
+                   file = sys.stderr)
+            sys.exit (3)
 
         with open(filename, "w") as outfile:
             for value in batch:

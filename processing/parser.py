@@ -25,13 +25,14 @@ class SparkParser:
         if os.path.exists(outputDir):
             self.outputDir = outputDir
         else:
-            print("The inserted output directory does not exists", file = sys.stderr)
+            print ("error: the inserted output directory does not exist",
+                   file = sys.stderr)
             sys.exit(1)
 
         if os.path.exists(filename):
             self.filename = filename
         else:
-            print("The inserted file does not exists", file = sys.stderr)
+            print ("error: the inserted file does not exist", file = sys.stderr)
             sys.exit(1)
 
         #Class props
@@ -137,7 +138,8 @@ class SparkParser:
                         self.parse(data, self.tasksHeaders, self.tasksCSVInfo)
                     elif event == "SparkListenerStageCompleted":
                         if "Failure Reason" in data["Stage Info"]:
-                            print ("Stage {} failed".format (data["Stage Info"]["Stage ID"]),
+                            print ("error: stage {} failed"
+                                   .format (data["Stage Info"]["Stage ID"]),
                                    file = sys.stderr)
                             sys.exit (3)
                         else:
@@ -148,7 +150,7 @@ class SparkParser:
                         self.parse(data, self.applicationHeaders, self.appCSVInfo)
 
                 except Exception as e:
-                    print("Error "+str(e), file = sys.stderr)
+                    print ("error: "+str(e), file = sys.stderr)
 
 
     def normalizeHeaders(self, headersDict):
@@ -190,7 +192,8 @@ class SparkParser:
 def main():
     args = sys.argv
     if len(args) != 4:
-        print("Required args: [LOG_FILE_TO_PARS] [ID_FOR_CSV_NAMING] [OUTPUTDIR]", file = sys.stderr)
+        print ("Required args: [LOG_FILE_TO_PARS] [ID_FOR_CSV_NAMING] [OUTPUTDIR]",
+               file = sys.stderr)
         sys.exit(2)
     else:
         parser = SparkParser(str(args[1]), str(args[2]), str(args[3])).run()

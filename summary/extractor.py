@@ -175,7 +175,7 @@ class Extractor:
     def fileValidation(self, filename):
         """Check the existence of the given file path."""
         if not os.path.exists(filename):
-            print >> sys.stderr, "The file '{}' does not exists".format (filename)
+            print >> sys.stderr, "error: file '{}' does not exist".format (filename)
             sys.exit(1)
 
 
@@ -255,7 +255,7 @@ def directoryScan(regex, directory, users, datasize, totCores):
                 Extractor (directory, path, users, datasize, totCores, headerCond).run ()
                 headerCond = False
             except:
-                print >> sys.stderr, "Error with directory '{}'".format (path)
+                print >> sys.stderr, "error: issue in directory '{}'".format (path)
 
 
 def main():

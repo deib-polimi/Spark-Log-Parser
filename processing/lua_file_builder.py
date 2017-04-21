@@ -40,13 +40,13 @@ def buildLuaFile(targetDirectory, name, containers):
 def main():
     args = sys.argv
     if len(args) != 4:
-        print("Required args: [TARGET_DIRECTORY] [NAME]")
+        print >> sys.stderr, "Required args: [TARGET_DIRECTORY] [NAME]"
         sys.exit(2)
     else:
         if os.path.exists(str(args[1])):
             buildLuaFile(str(args[1]), str(args[2]), str(args[3]))
         else:
-            print("Inserted directory does not exist")
+            print >> sys.stderr, "error: the inserted directory does not exist"
             sys.exit(1)
 
 
