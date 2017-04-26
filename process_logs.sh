@@ -196,7 +196,7 @@ simulate_all ()
         dir="$(dirname "$filename")"
         absdir="$(cd -P -- "$dir" && pwd)"
         outfile="$absdir/tmp.txt"
-        trap "rm -f \'$outfile\'; exit 130" INT TERM
+        trap "rm -f '$outfile'; exit 130" INT TERM
 
         echo Simulating $noext
         luafile="$absdir/$noext.lua"
