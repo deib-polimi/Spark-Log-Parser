@@ -155,7 +155,7 @@ process_data ()
             querydir="$(cd -P -- "$relquerydir" && pwd)"
 
             # Now $dir contains the runs of a given query and configuration
-            find "$dir" -type f -name '*.txt' | grep -v empirical \
+            find "$dir" -type f -name '*.txt' | grep /logs/ \
                 | while IFS= read -r filename; do
 
                 base="$(basename "$filename")"
