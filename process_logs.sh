@@ -83,6 +83,15 @@ fi
 
 EXPERIMENT_REGEX='[0-9]+_[0-9]+_[0-9]+G_[.0-9]+'
 
+# This trick is to drop spaces
+write_csv_line ()
+{
+    outfile="$1"
+    shift
+    printf '%s' "$@" >> "$outfile"
+    echo >> "$outfile"
+}
+
 parse_configuration ()
 {
     EXPERIMENT=$(echo $1 | tr / '\n' | grep -E "$EXPERIMENT_REGEX")
@@ -120,7 +129,8 @@ process_data ()
     done
 
     results_file="$root/ubertable.csv"
-    echo Run, Query, Executors, Total Cores, Memory, Datasize > "$results_file"
+    : > "$results_file"
+    write_csv_line "$results_file" Run, Query, Executors, TotalCores, Memory, Datasize
 
     find "$root" -type f | grep -E "$APP_REGEX" \
         | while IFS= read -r filename; do
@@ -130,8 +140,8 @@ process_data ()
 
             if [ "x$app_id" = "x$(basename "$filename")" ]; then
                 parse_configuration "$filename"
-                echo $app_id, $QUERY, $EXECUTORS, $TOTAL_CORES, $MEMORY, \
-                     $DATASIZE >> "$results_file"
+                write_csv_line "$results_file" $app_id, "$QUERY", $EXECUTORS, \
+                               $TOTAL_CORES, $MEMORY, $DATASIZE
 
                 dir="$(dirname "$filename")"
                 newdir="$dir/${app_id}_csv"
@@ -184,8 +194,10 @@ simulate_all ()
     root="$1"
 
     results_file="$root/simulations.csv"
-    echo Experiment, Query, Run, Sim Avg, Sim Dev, Sim Lower, \
-         Sim Upper, Sim Accuracy > "$results_file"
+    : > "$results_file"
+    write_csv_line "$results_file" Experiment, Query, Run, \
+                   SimAvg, SimDev, SimLower, \
+                   SimUpper, SimAccuracy
 
     find "$root" -type f -name '*.lua.template' \
         | while IFS= read -r filename; do
@@ -217,9 +229,9 @@ simulate_all ()
         accuracy="$(echo $results_line | awk '{ print $NF }')"
 
         parse_configuration "$dir"
-        echo $EXPERIMENT, "$QUERY", $noext, ${avg:-error}, ${dev:-error}, \
-             ${lower:-error}, ${upper:-error}, \
-             ${accuracy:-error} >> "$results_file"
+        write_csv_line "$results_file" $EXPERIMENT, "$QUERY", $noext, \
+                       ${avg:-error}, ${dev:-error}, \
+                       ${lower:-error}, ${upper:-error}, ${accuracy:-error}
         echo Finished
     done
 }
