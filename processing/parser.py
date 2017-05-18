@@ -25,14 +25,15 @@ class SparkParser:
         if os.path.exists(outputDir):
             self.outputDir = outputDir
         else:
-            print ("error: the inserted output directory does not exist",
+            print ("error: the inserted output directory '{}' does not exist".format(outputDir),
                    file = sys.stderr)
             sys.exit(1)
 
         if os.path.exists(filename):
             self.filename = filename
         else:
-            print ("error: the inserted file does not exist", file = sys.stderr)
+            print ("error: the inserted file '{}' does not exist".format(filename),
+                   file = sys.stderr)
             sys.exit(1)
 
         #Class props
