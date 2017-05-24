@@ -89,14 +89,23 @@ for directory, _, files in os.walk (root):
         elif filename == "simulations.csv":
             sim_R = process_simulations (full_path)
 
-errors = {experiment: {query: (sim_R[experiment][query] - real) / real
-                       for query, real in inner.items ()}
-                     for experiment, inner in avg_R.items ()}
+errors = {experiment:
+          {query:
+           {"measured": real,
+            "simulated": sim_R[experiment][query],
+            "error": (sim_R[experiment][query] - real) / real}
+           for query, real in inner.items ()}
+          for experiment, inner in avg_R.items ()}
 
-fields = ["Experiment", "Query", "Error[1]"]
-rows = ([experiment, query, error] for experiment, inner in errors.items ()
-        for query, error in inner.items())
+fields = ["Experiment", "Query", "Measured", "Simulated", "Error[1]"]
+rows = ({"Experiment": experiment,
+         "Query": query,
+         "Error[1]": data["error"],
+         "Measured": data["measured"],
+         "Simulated": data["simulated"]}
+        for experiment, inner in errors.items ()
+        for query, data in inner.items())
 
-writer = csv.writer (sys.stdout)
-writer.writerow (fields)
+writer = csv.DictWriter (sys.stdout, fieldnames = fields)
+writer.writeheader ()
 writer.writerows (rows)
