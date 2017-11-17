@@ -80,9 +80,6 @@ if [ ! -d "$1" ]; then
     error the inserted directory does not exist
 fi
 
-
-EXPERIMENT_REGEX='[0-9]+_[0-9]+_[0-9]+G_[.0-9]+'
-
 # This trick is to drop spaces
 write_csv_line ()
 {

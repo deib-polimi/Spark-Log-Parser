@@ -23,7 +23,9 @@ while [ -L "$SOURCE" ]; do
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
+set -a
 . "$DIR/config.sh"
+set +a
 
 
 error_aux ()
@@ -64,7 +66,7 @@ shift $(expr $OPTIND - 1)
 
 parse_configuration ()
 {
-    EXPERIMENT=$(echo $1 | tr / '\n' | grep -E '[0-9]+_[0-9]+_[0-9]+G_[0-9]+')
+    EXPERIMENT=$(echo $1 | tr / '\n' | grep -E "$EXPERIMENT_REGEX")
     EXECUTORS=$(echo $EXPERIMENT | awk -F _ '{ print $1 }')
     CORES=$(echo $EXPERIMENT | awk -F _ '{ print $2 }')
     MEMORY=$(echo $EXPERIMENT | awk -F _ '{ print $3 }')

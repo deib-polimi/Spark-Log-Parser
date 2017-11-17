@@ -17,6 +17,9 @@
 # uses it as well.
 APP_REGEX='(app(lication)?[-_][0-9]+[-_][0-9]+)|(\w+-\w+-\w+-\w+-\w+-[0-9]+)'
 
+# Extended regular expression to match experiment specifications
+EXPERIMENT_REGEX='[0-9]+_[0-9]+_[0-9]+[MG]_[.0-9]+'
+
 ## DAGSIM parameters
 ## These apply only to process_logs.sh
 # DagSim executable
