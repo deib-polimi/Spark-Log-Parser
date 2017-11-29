@@ -14,6 +14,7 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
+import argparse
 import csv
 import os
 import sys
@@ -70,10 +71,17 @@ def process_summary (filename):
     return cumsum / count
 
 
-def main ():
+def parse_arguments (args = None):
+    descr = "Build a CSV table comparing real data and empirical simulations"
+    parser = argparse.ArgumentParser (description = descr)
+    parser.add_argument ("root", help = "directory with processed and simulated logs")
+    return parser.parse_args (args)
+
+
+def main (args):
     avg_R = defaultdict (dict)
 
-    for directory, _, files in os.walk (root):
+    for directory, _, files in os.walk (args.root):
         if "failed" not in directory:
             for filename in files:
                 full_path = os.path.join (directory, filename)
@@ -108,10 +116,5 @@ def main ():
 
 
 if __name__ == "__main__":
-    if len (sys.argv) != 2:
-        print ("error: wrong number of input arguments", file = sys.stderr)
-        sys.exit (2)
-    else:
-        root = sys.argv[1]
-
-    main ()
+    args = parse_arguments ()
+    main (args)
