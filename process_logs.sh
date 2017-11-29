@@ -158,6 +158,7 @@ process_data ()
             | while IFS= read -r dir; do
 
             relquerydir="$dir/empirical"
+            rm -rf "$relquerydir"
             mkdir -p "$relquerydir"
             querydir="$(cd -P -- "$relquerydir" && pwd)"
 
