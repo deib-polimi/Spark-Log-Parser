@@ -79,15 +79,16 @@ def process_summary (filename):
 avg_R = defaultdict (dict)
 
 for directory, _, files in os.walk (root):
-    for filename in files:
-        full_path = os.path.join (directory, filename)
+    if "failed" not in directory:
+        for filename in files:
+            full_path = os.path.join (directory, filename)
 
-        if filename == "summary.csv":
-            experiment, query = parse_dir_name (directory)
-            result = process_summary (full_path)
-            avg_R[experiment][query] = result
-        elif filename == "simulations.csv":
-            sim_R = process_simulations (full_path)
+            if filename == "summary.csv":
+                experiment, query = parse_dir_name (directory)
+                result = process_summary (full_path)
+                avg_R[experiment][query] = result
+            elif filename == "simulations.csv":
+                sim_R = process_simulations (full_path)
 
 errors = {experiment:
           {query:

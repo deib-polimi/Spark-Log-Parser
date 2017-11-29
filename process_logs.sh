@@ -129,7 +129,7 @@ process_data ()
     : > "$results_file"
     write_csv_line "$results_file" Run, Query, Executors, TotalCores, Memory, Datasize
 
-    find "$root" -type f | grep -E "$APP_REGEX" \
+    find "$root" -type f | grep -E "$APP_REGEX" | grep -v failed \
         | while IFS= read -r filename; do
 
         if echo "$filename" | grep -q /logs/; then
@@ -163,14 +163,14 @@ process_data ()
 
             # Now $dir contains the runs of a given query and configuration
             find "$dir" -type f -name '*.txt' | grep /logs/ \
-                | while IFS= read -r filename; do
+                | grep -v failed | while IFS= read -r filename; do
 
                 base="$(basename "$filename")"
                 cat "$filename" >> "$querydir/$base"
             done
 
             find "$dir" -type f -name '*.lua.template' | grep -e "$query" \
-                | grep -v empirical | while IFS= read -r filename; do
+                | grep -v -e empirical -e failed | while IFS= read -r filename; do
 
                 if ! grep -q 'does not exist' "$filename"; then
                     indir="$(dirname "$filename")"
@@ -196,7 +196,7 @@ simulate_all ()
                    SimAvg, SimDev, SimLower, \
                    SimUpper, SimAccuracy
 
-    find "$root" -type f -name '*.lua.template' \
+    find "$root" -type f -name '*.lua.template' | grep -v failed \
         | while IFS= read -r filename; do
 
         base="$(basename "$filename")"
