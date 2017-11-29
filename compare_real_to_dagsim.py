@@ -21,12 +21,6 @@ import sys
 from collections import defaultdict
 from pathlib import PurePath
 
-if len (sys.argv) != 2:
-    print ("error: wrong number of input arguments", file = sys.stderr)
-    sys.exit (2)
-else:
-    root = sys.argv[1]
-
 
 def parse_dir_name (directory):
     experiment = query = None
@@ -76,37 +70,48 @@ def process_summary (filename):
     return cumsum / count
 
 
-avg_R = defaultdict (dict)
+def main ():
+    avg_R = defaultdict (dict)
 
-for directory, _, files in os.walk (root):
-    if "failed" not in directory:
-        for filename in files:
-            full_path = os.path.join (directory, filename)
+    for directory, _, files in os.walk (root):
+        if "failed" not in directory:
+            for filename in files:
+                full_path = os.path.join (directory, filename)
 
-            if filename == "summary.csv":
-                experiment, query = parse_dir_name (directory)
-                result = process_summary (full_path)
-                avg_R[experiment][query] = result
-            elif filename == "simulations.csv":
-                sim_R = process_simulations (full_path)
+                if filename == "summary.csv":
+                    experiment, query = parse_dir_name (directory)
+                    result = process_summary (full_path)
+                    avg_R[experiment][query] = result
+                elif filename == "simulations.csv":
+                    sim_R = process_simulations (full_path)
 
-errors = {experiment:
-          {query:
-           {"measured": real,
-            "simulated": sim_R[experiment][query],
-            "error": (sim_R[experiment][query] - real) / real}
-           for query, real in inner.items ()}
-          for experiment, inner in avg_R.items ()}
+    errors = {experiment:
+              {query:
+               {"measured": real,
+                "simulated": sim_R[experiment][query],
+                "error": (sim_R[experiment][query] - real) / real}
+               for query, real in inner.items ()}
+              for experiment, inner in avg_R.items ()}
 
-fields = ["Experiment", "Query", "Measured", "Simulated", "Error[1]"]
-rows = ({"Experiment": experiment,
-         "Query": query,
-         "Error[1]": data["error"],
-         "Measured": data["measured"],
-         "Simulated": data["simulated"]}
-        for experiment, inner in errors.items ()
-        for query, data in inner.items())
+    fields = ["Experiment", "Query", "Measured", "Simulated", "Error[1]"]
+    rows = ({"Experiment": experiment,
+             "Query": query,
+             "Error[1]": data["error"],
+             "Measured": data["measured"],
+             "Simulated": data["simulated"]}
+            for experiment, inner in errors.items ()
+            for query, data in inner.items())
 
-writer = csv.DictWriter (sys.stdout, fieldnames = fields)
-writer.writeheader ()
-writer.writerows (rows)
+    writer = csv.DictWriter (sys.stdout, fieldnames = fields)
+    writer.writeheader ()
+    writer.writerows (rows)
+
+
+if __name__ == "__main__":
+    if len (sys.argv) != 2:
+        print ("error: wrong number of input arguments", file = sys.stderr)
+        sys.exit (2)
+    else:
+        root = sys.argv[1]
+
+    main ()
