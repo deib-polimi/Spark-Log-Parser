@@ -1,6 +1,6 @@
 #!/bin/sh
 
-## Copyright 2017 Eugenio Gianniti <eugenio.gianniti@polimi.it>
+## Copyright 2017-2018 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ## Copyright 2016 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -213,6 +213,8 @@ simulate_all ()
         cat "$filename" | \
             sed -e "s#@@MAXJOBS@@#$DAGSIM_MAXJOBS#g" \
                 -e "s#@@COEFF@@#$DAGSIM_CONFINTCOEFF#g" \
+                -e "s#@@NUMPERC@@#$DAGSIM_NUMPERC#g" \
+                -e "s#@@PERCSAMPLES@@#$DAGSIM_PERCSAMPLES#g" \
                 > "$luafile"
         "$DAGSIM" "$luafile" > "$outfile"
 

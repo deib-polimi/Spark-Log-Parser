@@ -15,3 +15,9 @@ maxJobs = @@MAXJOBS@@;
 
 -- Coefficient for the Confidence Intervals
 confIntCoeff = @@COEFF@@;
+
+-- Number of percentile to compute
+NPerc = @@NUMPERC@@;
+
+-- Maximum samples of percentiles
+MaxPercSamp = @@PERCSAMPLES@@;

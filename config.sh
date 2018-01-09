@@ -1,4 +1,5 @@
 ## Copyright 2016 Giorgio Pea <giorgio.pea@mail.polimi.it>
+## Copyright 2017-2018 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -43,3 +44,9 @@ DAGSIM_MAXJOBS=1000
 # 95%   1.96
 # 90%   1.645
 DAGSIM_CONFINTCOEFF=1.96
+
+# Number of percentiles to compute, in total N - 1 results
+DAGSIM_NUMPERC=100
+
+# Sample size for the computation of percentiles
+DAGSIM_PERCSAMPLES=1000
