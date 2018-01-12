@@ -205,8 +205,7 @@ simulate_all ()
 
         dir="$(dirname "$filename")"
         absdir="$(cd -P -- "$dir" && pwd)"
-        outfile="$absdir/tmp.txt"
-        trap "rm -f '$outfile'; exit 130" INT TERM
+        outfile="$absdir/$noext.dagsim.txt"
 
         echo Simulating $noext
         luafile="$absdir/$noext.lua"
@@ -220,7 +219,6 @@ simulate_all ()
 
         results_line="$(cat "$outfile" | grep ^0 | cut -f 2- | \
                             grep ^0 | cut -f 2-)"
-        rm "$outfile"
 
         avg="$(echo $results_line | awk '{ print $1 }')"
         dev="$(echo $results_line | awk '{ print $2 }')"
