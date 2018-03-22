@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-## Copyright 2017 Eugenio Gianniti
+## Copyright 2017-2018 Eugenio Gianniti
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -64,9 +64,14 @@ def process_summary (filename):
 
         reader = csv.DictReader (csvfile)
 
-        for row in reader:
-            cumsum += float (row["applicationCompletionTime"]) - float (row["applicationDeltaBeforeComputing"])
-            count += 1
+        try:
+            for row in reader:
+                cumsum += (float (row["applicationCompletionTime"]) -
+                           float (row["applicationDeltaBeforeComputing"]))
+                count += 1
+        except KeyError as e:
+            print ("warning: '{csv}' lacks key {key}".format (csv = filename, key = e),
+                   file = sys.stderr)
 
     return cumsum / count
 
