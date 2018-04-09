@@ -164,7 +164,8 @@ process_data ()
 
             # Now $dir contains the runs of a given query and configuration
             find "$dir" -type f -name '*.txt' | grep /logs/ \
-                | grep -v failed | while IFS= read -r filename; do
+                | grep -vE -e failed -e '.dagsim.txt$' \
+                | while IFS= read -r filename; do
 
                 base="$(basename "$filename")"
                 cat "$filename" >> "$querydir/$base"
