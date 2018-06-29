@@ -75,19 +75,19 @@ class Extractor:
 
         targetHeaders += terminalCsvHeaders
 
-        with open(self.summaryDirectory+"/summary.csv", 'w') as f:
+        with open(os.path.join(self.summaryDirectory, "summary.csv"), "w") as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             writer.writerow(targetHeaders)
 
 
     def produceFile(self, finalList):
-        with open(self.summaryDirectory+"/summary.csv", 'a') as f:
+        with open(os.path.join(self.summaryDirectory, "summary.csv"), "a") as f:
             writer = csv.writer(f, delimiter=',', lineterminator='\n')
             writer.writerow(finalList)
 
 
     def retrieveApplicationTime(self):
-        with open(self.directory+"/app_1.csv", "r") as f:
+        with open(os.path.join(self.directory, "app_1.csv"), "r") as f:
             appRows = csv.DictReader(f)
 
             for index, row in enumerate(appRows):
@@ -146,9 +146,9 @@ class Extractor:
 
 
     def run(self):
-        tasksFile = self.directory + "/tasks_1.csv"
-        jobsFile = self.directory + "/jobs_1.csv"
-        stagesFile = self.directory + "/stages_1.csv"
+        tasksFile = os.path.join(self.directory, "tasks_1.csv")
+        jobsFile = os.path.join(self.directory, "jobs_1.csv")
+        stagesFile = os.path.join(self.directory, "stages_1.csv")
 
         self.retrieveApplicationTime()
 
@@ -248,9 +248,10 @@ class Extractor:
 def directoryScan(regex, directory, users, datasize, totCores):
     headerCond = True
     rx = re.compile(regex)
+    logDir = os.path.join(directory, "logs")
 
-    for fileName in os.listdir(directory+"/logs"):
-        path = directory+"/logs/"+fileName
+    for fileName in os.listdir(logDir):
+        path = os.path.join(logDir, fileName)
 
         if os.path.isdir(path) and rx.match(fileName):
             try:

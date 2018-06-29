@@ -19,6 +19,7 @@
 import csv
 import sys
 import os
+
 from functools import reduce
 
 
@@ -159,11 +160,11 @@ class Parser:
         """Build .txt files containing the execution time of each task in a stage."""
         batch = []
         lastRow = None
-        template = "{dir}/S{{stage}}.txt".format (dir = self.targetDirectory)
 
         for row in self.stagesRows:
             if lastRow != None and lastRow["Stage ID"] != row["Stage ID"]:
-                filename = template.format (stage = lastRow["Stage ID"])
+                base = "S{}.txt".format (lastRow["Stage ID"])
+                filename = os.path.join (self.targetDirectory, base)
 
                 with open(filename, "w") as outfile:
                     for value in batch:
@@ -175,7 +176,8 @@ class Parser:
             lastRow = row
 
         if lastRow:
-            filename = template.format (stage = lastRow["Stage ID"])
+            base = "S{}.txt".format (lastRow["Stage ID"])
+            filename = os.path.join (self.targetDirectory, base)
         else:
             print ("error: file '{}' is empty".format (self.stagesFile),
                    file = sys.stderr)
@@ -260,8 +262,8 @@ class Parser:
         for key, value in stagesDict.items():
             namedParents = [stagesDict[x]["name"] for x in value["parents"]]
             namedChildren = [stagesDict[x]["name"] for x in value["children"]]
-            namedParents = reduce(lambda accumul, current: accumul+'"'+current+'",', namedParents, '' )
-            namedChildren = reduce(lambda accumul, current: accumul+'"'+current+'",', namedChildren, '' )
+            namedParents = reduce(lambda accumul, current: accumul + '"' + current + '",', namedParents, '')
+            namedChildren = reduce(lambda accumul, current: accumul + '"' + current + '",', namedChildren, '')
 
             if namedParents != '':
                 namedParents = namedParents[:-1]
@@ -269,9 +271,10 @@ class Parser:
             if namedChildren != '':
                 namedChildren = namedChildren[:-1]
 
-            targetString += '{ name="'+value["name"]+'", tasks="'+value["tasks"]+'"'
-            targetString += ', distr={type="replay", params={samples=solver.fileToArray("'+self.targetDirectory+value["name"]+'.txt")}}'
-            targetString += ', pre={'+namedParents+'}, post={'+namedChildren+'}},'
+            targetString += '{{ name="{name}", tasks="{tasks}"'.format (name = value["name"], tasks = value["tasks"])
+            timeFile = os.path.join (self.targetDirectory, "{}.txt".format (value["name"]))
+            targetString += ', distr={{type="replay", params={{samples=solver.fileToArray("{filename}")}}}}'.format (filename = timeFile)
+            targetString += ', pre={{{parents}}}, post={{{children}}}}},'.format (parents = namedParents, children = namedChildren)
 
         targetString = '{'+targetString[:-1]+'}'
         print(targetString)
@@ -284,7 +287,7 @@ def main():
         print("Required args: [JOBS_FILE_CSV] [STAGE_FILE_CSV] [STAGE_REL_FILE_CSV] [DIRECTORY_FOR_OUTPUTTED_STRING]")
         sys.exit(2)
     else:
-        parser = Parser(str(args[1]), str(args[2]), str(args[3]), str(args[4])+'/')
+        parser = Parser(str(args[1]), str(args[2]), str(args[3]), str(args[4]))
         parser.run ()
 
 

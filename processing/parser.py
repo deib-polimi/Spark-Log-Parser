@@ -164,22 +164,22 @@ class SparkParser:
     def produceCSVs(self):
         csvTasks = [
             {
-                "filename": self.outputDir+"/tasks_"+self.appId+".csv",
+                "filename": os.path.join(self.outputDir, "tasks_{}.csv".format(self.appId)),
                 "records": self.tasksCSVInfo,
                 "headers": self.normalizeHeaders(self.tasksHeaders)
             },
             {
-                "filename": self.outputDir+"/jobs_"+self.appId+".csv",
+                "filename": os.path.join(self.outputDir, "jobs_{}.csv".format(self.appId)),
                 "records": self.jobsCSVInfo,
                 "headers": self.normalizeHeaders(self.jobHeaders)
             },
             {
-                "filename" : self.outputDir+"/stages_"+self.appId+".csv",
+                "filename" : os.path.join(self.outputDir, "stages_{}.csv".format(self.appId)),
                 "records" : self.stagesCSVInfo,
                 "headers" : self.normalizeHeaders(self.stageHeaders)
             },
             {
-                "filename": self.outputDir+"/app_"+self.appId+".csv",
+                "filename": os.path.join(self.outputDir, "app_{}.csv".format(self.appId)),
                 "records": self.appCSVInfo,
                 "headers": self.normalizeHeaders(self.applicationHeaders)
             }
