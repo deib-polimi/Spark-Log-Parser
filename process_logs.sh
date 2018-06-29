@@ -108,9 +108,9 @@ build_lua_file ()
     cores="$3"
     absdir="$(cd -P -- "$reldir" && pwd)"
 
-    STAGES=$(python "$DIR"/processing/automate.py "$absdir/jobs_1.csv" \
-                    "$absdir/tasks_1.csv" "$absdir/stages_1.csv" "$absdir")
-    DAGSIM_STAGES="$STAGES" python "$DIR"/processing/lua_file_builder.py \
+    STAGES=$("$DIR"/processing/automate.py "$absdir/jobs_1.csv" \
+                   "$absdir/tasks_1.csv" "$absdir/stages_1.csv" "$absdir")
+    DAGSIM_STAGES="$STAGES" "$DIR"/processing/lua_file_builder.py \
                  "$reldir" "$app_id" "$cores"
 }
 
@@ -144,7 +144,7 @@ process_data ()
                 newdir="$dir/${app_id}_csv"
                 mkdir -p "$newdir"
 
-                python "$DIR"/processing/parser.py "$dir/$app_id" 1 "$newdir"
+                "$DIR"/processing/parser.py "$dir/$app_id" 1 "$newdir"
                 build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
             fi
         fi

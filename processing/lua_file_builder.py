@@ -1,3 +1,6 @@
+#! /usr/bin/env python3
+
+## Copyright 2018 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ## Copyright 2016 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +15,7 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
+
 import os
 import sys
 
@@ -23,13 +27,13 @@ def buildLuaFile(targetDirectory, name, containers):
         content = infile.read()
 
     content = content \
-              .replace('@@STAGES@@', os.environ['DAGSIM_STAGES']) \
-              .replace('@@CONTAINERS@@', containers) \
-              .replace('@@USERS@@', os.environ['DAGSIM_USERS']) \
-              .replace('@@TYPE@@',
-                       os.environ['DAGSIM_UTHINKTIMEDISTR_TYPE']) \
-              .replace('@@PARAMS@@',
-                       os.environ['DAGSIM_UTHINKTIMEDISTR_PARAMS'])
+        .replace('@@STAGES@@', os.environ['DAGSIM_STAGES']) \
+        .replace('@@CONTAINERS@@', containers) \
+        .replace('@@USERS@@', os.environ['DAGSIM_USERS']) \
+        .replace('@@TYPE@@',
+                 os.environ['DAGSIM_UTHINKTIMEDISTR_TYPE']) \
+        .replace('@@PARAMS@@',
+                 os.environ['DAGSIM_UTHINKTIMEDISTR_PARAMS'])
 
     outfilename = os.path.join(targetDirectory,
                                '{}.lua.template'.format(name))
@@ -40,13 +44,13 @@ def buildLuaFile(targetDirectory, name, containers):
 def main():
     args = sys.argv
     if len(args) != 4:
-        print >> sys.stderr, "Required args: [TARGET_DIRECTORY] [NAME]"
+        print("Required args: [TARGET_DIRECTORY] [NAME]", file=sys.stderr)
         sys.exit(2)
     else:
         if os.path.exists(str(args[1])):
             buildLuaFile(str(args[1]), str(args[2]), str(args[3]))
         else:
-            print >> sys.stderr, "error: the inserted directory does not exist"
+            print("error: the inserted directory does not exist", file=sys.stderr)
             sys.exit(1)
 
 

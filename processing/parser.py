@@ -1,3 +1,6 @@
+#! /usr/bin/env python3
+
+## Copyright 2018 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ## Copyright 2016 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +15,6 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
-from __future__ import print_function
 
 import csv
 import json
@@ -21,7 +23,7 @@ import sys
 
 
 class SparkParser:
-    def __init__(self,filename,appId,outputDir):
+    def __init__(self, filename, appId, outputDir):
         if os.path.exists(outputDir):
             self.outputDir = outputDir
         else:
@@ -111,7 +113,7 @@ class SparkParser:
     def parse(self, data, headers, csvinfo):
         record = {}
 
-        for field, inner in headers.iteritems ():
+        for field, inner in headers.items ():
             for subfield in inner:
                 try:
                     if field == "_":
@@ -155,7 +157,7 @@ class SparkParser:
 
 
     def normalizeHeaders(self, headersDict):
-        return [subfield for inner in headersDict.itervalues ()
+        return [subfield for inner in headersDict.values ()
                 for subfield in inner]
 
 

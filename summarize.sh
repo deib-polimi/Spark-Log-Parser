@@ -81,8 +81,8 @@ process_data ()
         | grep -v failed | sort | uniq | while IFS= read -r dir; do
 
         parse_configuration "$dir"
-        python "$DIR/summary/extractor.py" "$APP_REGEX" "$dir" "$USERS" \
-               "$DATASIZE" "$TOTAL_CORES"
+        "$DIR/summary/extractor.py" "$APP_REGEX" "$dir" "$USERS" \
+                                    "$DATASIZE" "$TOTAL_CORES"
 
         application="$(basename "$dir")"
         {

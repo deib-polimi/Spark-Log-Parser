@@ -1,4 +1,6 @@
-## Copyright 2017 Eugenio Gianniti <eugenio.gianniti@polimi.it>
+#! /usr/bin/env python3
+
+## Copyright 2017-2018 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ## Copyright 2017 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +15,7 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
-from __future__ import division
+
 from collections import OrderedDict
 from operator import itemgetter
 
@@ -85,7 +87,7 @@ class Extractor:
 
 
     def retrieveApplicationTime(self):
-        with open(self.directory+"/app_1.csv","r") as f:
+        with open(self.directory+"/app_1.csv", "r") as f:
             appRows = csv.DictReader(f)
 
             for index, row in enumerate(appRows):
@@ -134,7 +136,7 @@ class Extractor:
 
         for stageID in self.stageIDs:
             stage = self.stagesTasksDict[stageID]
-            finalList += stage.values ()[1:]
+            finalList += list(stage.values ())[1:]
 
         finalList.append(self.users)
         finalList.append(self.memory)
@@ -159,7 +161,7 @@ class Extractor:
             stagesRows = self.orderStages(csv.DictReader(f))
 
         self.stagesRows = [r for r in stagesRows if r["Stage ID"] in self.availableIDs]
-        self.minTaskLaunchTime = min(map(lambda x: int(x["Launch Time"]) , self.stagesRows))
+        self.minTaskLaunchTime = min(int(x["Launch Time"]) for x in self.stagesRows)
 
         self.retrieveJobs(jobsFile)
         self.jobsCardinality = len(self.jobsDict)
@@ -175,7 +177,7 @@ class Extractor:
     def fileValidation(self, filename):
         """Check the existence of the given file path."""
         if not os.path.exists(filename):
-            print >> sys.stderr, "error: file '{}' does not exist".format (filename)
+            print("error: file '{}' does not exist".format (filename), file=sys.stderr)
             sys.exit(1)
 
 
@@ -255,14 +257,14 @@ def directoryScan(regex, directory, users, datasize, totCores):
                 Extractor (directory, path, users, datasize, totCores, headerCond).run ()
                 headerCond = False
             except:
-                print >> sys.stderr, "error: issue in directory '{}'".format (path)
+                print("error: issue in directory '{}'".format (path), file=sys.stderr)
 
 
 def main():
     args = sys.argv
 
     if len(args) != 6:
-        print >> sys.stderr, "Required args: [REGEX] [QUERY DIRECTORY] [USERS] [DATASIZE] [TOT CORES]"
+        print("Required args: [REGEX] [QUERY DIRECTORY] [USERS] [DATASIZE] [TOT CORES]", file=sys.stderr)
         sys.exit(2)
     else:
         directoryScan(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]))

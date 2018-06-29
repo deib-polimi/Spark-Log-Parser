@@ -1,4 +1,6 @@
-## Copyright 2017 Eugenio Gianniti <eugenio.gianniti@polimi.it>
+#! /usr/bin/env python3
+
+## Copyright 2017-2018 Eugenio Gianniti <eugenio.gianniti@polimi.it>
 ## Copyright 2016 Giorgio Pea <giorgio.pea@mail.polimi.it>
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,11 +15,11 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
-from __future__ import print_function
 
 import csv
 import sys
 import os
+from functools import reduce
 
 
 class Parser:
@@ -32,7 +34,9 @@ class Parser:
 
 
     def run(self):
-        map(lambda x: self.fileValidation(x), [self.jobsFile, self.stagesFile, self.stagesRelFile])
+        self.fileValidation(self.jobsFile)
+        self.fileValidation(self.stagesFile)
+        self.fileValidation(self.stagesRelFile)
 
         self.parseJobs()
         self.buildJobHierarchy()
@@ -47,7 +51,7 @@ class Parser:
     def fileValidation(self, filename):
         """Check the existence of the given file path."""
         if not os.path.exists(filename):
-            print("The file "+filename+" does not exists")
+            print("error: file '{}' does not exist".format (filename), file = sys.stderr)
             sys.exit(1)
 
 
@@ -55,7 +59,7 @@ class Parser:
         """Read job records from a CSV file and build a dict based upon them."""
         jobs = {}
 
-        with open(self.jobsFile,"r") as infile:
+        with open(self.jobsFile, "r") as infile:
             jobsReader = csv.DictReader(infile)
 
             for row in jobsReader:
@@ -64,7 +68,7 @@ class Parser:
                 completionTime = row["Completion Time"]
                 submissionTime = row["Submission Time"]
 
-                if(stageIds != "NOVAL"):
+                if stageIds != "NOVAL":
                     stagesList = self.parseStagesList(stageIds)
 
                     self.jobsMap[jobId] = {
@@ -96,8 +100,8 @@ class Parser:
         """Build a simple hierarchy among job based on the fact that
         a job is considered a parent of another one if it finishes before its start.
         """
-        for key, value in self.jobsMap.iteritems():
-            for key_1, value_1 in self.jobsMap.iteritems():
+        for key, value in self.jobsMap.items():
+            for key_1, value_1 in self.jobsMap.items():
                 if value["completionTime"] < value_1["submissionTime"] and key != key_1:
                     self.jobsMap[key_1]["parents"].append(key)
 
@@ -111,14 +115,17 @@ class Parser:
         tmp = []
 
         #Order the parents of a job per temporal distance from the job
-        for key_, value in self.jobsMap.iteritems():
-            value["parents"] = sorted(value["parents"], key=lambda x: self.jobsMap[key_]["submissionTime"] - self.jobsMap[x]["completionTime"])
+        for key_, value in self.jobsMap.items():
+            value["parents"] = sorted(value["parents"],
+                                      key = lambda x:
+                                      self.jobsMap[key_]["submissionTime"] -
+                                      self.jobsMap[x]["completionTime"])
 
         """Exclude for each job, those parents which are also parents of other parents of the job
         e.g job0 -> parents = [job3,job4,job5]
         job4 is not the parent of job3, but job5 is the parent of job3, so job5 must be excluded.
         """
-        for key,value in self.jobsMap.iteritems():
+        for key, value in self.jobsMap.items():
             parents = value["parents"]
 
             if len(parents) != 0:
@@ -128,7 +135,7 @@ class Parser:
                 if(index != 0):
                     for index_1, parent_1 in enumerate(parents[:index]):
                         if parent not in self.jobsMap[parents[index_1]]["parents"]:
-                            counter=counter+1
+                            counter = counter+1
 
                     if counter == len(parents[:index]):
                         tmp.append(parent)
@@ -142,8 +149,8 @@ class Parser:
     def decorateWithFollowers(self, jobsMap):
         """From a map in which each node contains just a 'parents' field,
         decorate such nodes with a proper 'followers' field."""
-        for key,value in jobsMap.iteritems():
-            for key_1, value_1 in jobsMap.iteritems():
+        for key, value in jobsMap.items():
+            for key_1, value_1 in jobsMap.items():
                 if key != key_1 and key in value_1["parents"]:
                     value["followers"].append(key_1)
 
@@ -214,7 +221,7 @@ class Parser:
         newMap = []
 
         """For each job retrieve the first stages and the last stages"""
-        for key, job in self.jobsMap.iteritems():
+        for key, job in self.jobsMap.items():
             cleanStages = (s for s in job["stages"] if s in self.availableIDs)
 
             for stage in cleanStages:
@@ -234,7 +241,7 @@ class Parser:
         of these jobs, consider their first stages, then express that the last stages
         of the current job are the parent of the first stages of the current child job
         and the contrary"""
-        for key, job in self.jobsMap.iteritems():
+        for key, job in self.jobsMap.items():
             for stage in job["last"]:
                 for nextJob in job["followers"]:
                     for stage_1 in self.jobsMap[nextJob]["first"]:
@@ -250,11 +257,11 @@ class Parser:
         stagesDict = self.perJobStagesRel()
         targetString = ''
 
-        for key, value in stagesDict.iteritems():
-            namedParents = map(lambda x: stagesDict[x]["name"], value["parents"])
-            namedChildren = map(lambda x: stagesDict[x]["name"], value["children"])
-            namedParents = reduce(lambda accumul, current: accumul+'"'+current+'",',namedParents, '' )
-            namedChildren = reduce(lambda accumul, current: accumul+'"'+current+'",',namedChildren, '' )
+        for key, value in stagesDict.items():
+            namedParents = [stagesDict[x]["name"] for x in value["parents"]]
+            namedChildren = [stagesDict[x]["name"] for x in value["children"]]
+            namedParents = reduce(lambda accumul, current: accumul+'"'+current+'",', namedParents, '' )
+            namedChildren = reduce(lambda accumul, current: accumul+'"'+current+'",', namedChildren, '' )
 
             if namedParents != '':
                 namedParents = namedParents[:-1]
