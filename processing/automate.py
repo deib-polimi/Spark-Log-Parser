@@ -277,14 +277,17 @@ class Parser:
             targetString += ', pre={{{parents}}}, post={{{children}}}}},'.format (parents = namedParents, children = namedChildren)
 
         targetString = '{'+targetString[:-1]+'}'
-        print(targetString)
+        targetFile = os.path.join (self.targetDirectory, "dependencies.lua")
+
+        with open (targetFile, "w") as outfile:
+            print (targetString, file = outfile)
 
 
 def main():
     args = sys.argv
 
     if len(args) != 5:
-        print("Required args: [JOBS_FILE_CSV] [STAGE_FILE_CSV] [STAGE_REL_FILE_CSV] [DIRECTORY_FOR_OUTPUTTED_STRING]")
+        print("Required args: [JOBS_FILE_CSV] [STAGE_FILE_CSV] [STAGE_REL_FILE_CSV] [DIRECTORY_FOR_OUTPUT_STRING]")
         sys.exit(2)
     else:
         parser = Parser(str(args[1]), str(args[2]), str(args[3]), str(args[4]))

@@ -26,8 +26,12 @@ def buildLuaFile(targetDirectory, name, containers):
     with open(os.path.join(scriptdir, 'template.lua'), 'r') as infile:
         content = infile.read()
 
+    with open (os.path.join (targetDirectory,
+                             "dependencies.lua"), "r") as infile:
+        stages = infile.read ()
+
     content = content \
-        .replace('@@STAGES@@', os.environ['DAGSIM_STAGES']) \
+        .replace('@@STAGES@@', stages) \
         .replace('@@CONTAINERS@@', containers) \
         .replace('@@USERS@@', os.environ['DAGSIM_USERS']) \
         .replace('@@TYPE@@',
@@ -50,7 +54,8 @@ def main():
         if os.path.exists(str(args[1])):
             buildLuaFile(str(args[1]), str(args[2]), str(args[3]))
         else:
-            print("error: the inserted directory does not exist", file=sys.stderr)
+            print("error: the inserted directory does not exist",
+                  file = sys.stderr)
             sys.exit(1)
 
 
