@@ -143,7 +143,7 @@ process_data ()
                 newdir="$dir/${app_id}_csv"
                 mkdir -p "$newdir"
 
-                "$DIR"/processing/parser.py "$dir/$app_id" 1 "$newdir"
+                "$DIR/processing/parser.py" "$dir/$app_id" 1 "$newdir"
                 build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
             fi
         fi

@@ -90,11 +90,9 @@ class Extractor:
         with open(os.path.join(self.directory, "app_1.csv"), "r") as f:
             appRows = csv.DictReader(f)
 
-            for index, row in enumerate(appRows):
-                if index == 0:
-                    self.appStartTime = int(row["Timestamp"])
-                elif index == 1:
-                    self.appEndTime = int(row["Timestamp"])
+            for row in appRows:
+                self.appStartTime = int(row["Submission Time"])
+                self.appEndTime = int(row["Completion Time"])
 
 
     def retrieveJobs(self, jobsFile):
@@ -103,19 +101,15 @@ class Extractor:
         with open(jobsFile, "r") as f:
             jobsRows = sorted(csv.DictReader(f), key=lambda x: x["Job ID"])
 
-        i = 0
-
-        while i < len(jobsRows):
-            thisRow = jobsRows[i]
-            completionTime = int(jobsRows[i + 1]["Completion Time"]) - int(thisRow["Submission Time"])
-            dirtyStages = thisRow["Stage IDs"][1:-1].split(", ")
+        for row in jobsRows:
+            executionTime = int(row["Completion Time"]) - int(row["Submission Time"])
+            dirtyStages = row["Stage IDs"][1:-1].split(", ")
             stages = sorted (s for s in dirtyStages if s in self.availableIDs)
 
             if self.stagesLen == 0:
                 self.stagesLen = len(stages)
 
-            self.jobsDict[thisRow["Job ID"]] = {"completion": completionTime, "stages": stages}
-            i += 2
+            self.jobsDict[row["Job ID"]] = {"completion": executionTime, "stages": stages}
 
         self.jobIDs = sorted (self.jobsDict)
 
