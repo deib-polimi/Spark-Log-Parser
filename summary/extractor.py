@@ -26,8 +26,8 @@ import sys
 
 
 class Extractor:
-    def __init__(self, directory, filesDirectory, users, memory, containers, headerFlag):
-        self.containers = containers
+    def __init__(self, directory, filesDirectory, users, memory, headerFlag):
+        self.cores = None
         self.appStartTime = None
         self.appEndTime = None
         self.availableIDs = None
@@ -59,7 +59,7 @@ class Extractor:
                             'avgTask_S{stage}']
         shuffleCsvHeaders = ['SHmax_S{stage}', 'SHavg_S{stage}',
                              'Bmax_S{stage}', 'Bavg_S{stage}']
-        terminalCsvHeaders = ['users', 'dataSize', 'nContainers']
+        terminalCsvHeaders = ['users', 'dataSize', 'nCores']
 
         targetHeaders = []
         targetHeaders += applicationCsvHeaders
@@ -86,13 +86,18 @@ class Extractor:
             writer.writerow(finalList)
 
 
-    def retrieveApplicationTime(self):
-        with open(os.path.join(self.directory, "app_1.csv"), "r") as f:
-            appRows = csv.DictReader(f)
-
+    def retrieveApplicationTime(self, filename):
+        with open (filename, "r") as infile:
+            appRows = csv.DictReader (infile)
             for row in appRows:
                 self.appStartTime = int(row["Submission Time"])
                 self.appEndTime = int(row["Completion Time"])
+
+
+    def retrieveTotalCores(self, filename):
+        with open (filename, "r") as infile:
+            executorsRows = csv.DictReader (infile)
+            self.cores = sum (int (row["Total Cores"]) for row in executorsRows)
 
 
     def retrieveJobs(self, jobsFile):
@@ -134,17 +139,20 @@ class Extractor:
 
         finalList.append(self.users)
         finalList.append(self.memory)
-        finalList.append(self.containers)
+        finalList.append(self.cores)
 
         return finalList
 
 
     def run(self):
-        tasksFile = os.path.join(self.directory, "tasks_1.csv")
-        jobsFile = os.path.join(self.directory, "jobs_1.csv")
-        stagesFile = os.path.join(self.directory, "stages_1.csv")
+        appFile = os.path.join (self.directory, "app_1.csv")
+        tasksFile = os.path.join (self.directory, "tasks_1.csv")
+        jobsFile = os.path.join (self.directory, "jobs_1.csv")
+        stagesFile = os.path.join (self.directory, "stages_1.csv")
+        executorsFile = os.path.join (self.directory, "executors_1.csv")
 
-        self.retrieveApplicationTime()
+        self.retrieveApplicationTime (appFile)
+        self.retrieveTotalCores (executorsFile)
 
         with open(stagesFile, "r") as infile:
             rows = self.orderStages(csv.DictReader(infile))
@@ -239,7 +247,7 @@ class Extractor:
         self.stageIDs = sorted (self.stagesTasksDict)
 
 
-def directoryScan(regex, directory, users, datasize, totCores):
+def directoryScan(regex, directory, users, datasize):
     headerCond = True
     rx = re.compile(regex)
     logDir = os.path.join(directory, "logs")
@@ -249,7 +257,7 @@ def directoryScan(regex, directory, users, datasize, totCores):
 
         if os.path.isdir(path) and rx.match(fileName):
             try:
-                Extractor (directory, path, users, datasize, totCores, headerCond).run ()
+                Extractor (directory, path, users, datasize, headerCond).run ()
                 headerCond = False
             except:
                 print("error: issue in directory '{}'".format (path), file=sys.stderr)
@@ -258,11 +266,11 @@ def directoryScan(regex, directory, users, datasize, totCores):
 def main():
     args = sys.argv
 
-    if len(args) != 6:
-        print("Required args: [REGEX] [QUERY DIRECTORY] [USERS] [DATASIZE] [TOT CORES]", file=sys.stderr)
+    if len(args) != 5:
+        print("Required args: [REGEX] [QUERY DIRECTORY] [USERS] [DATASIZE]", file=sys.stderr)
         sys.exit(2)
     else:
-        directoryScan(str(args[1]), str(args[2]), str(args[3]), str(args[4]), str(args[5]))
+        directoryScan(str(args[1]), str(args[2]), str(args[3]), str(args[4]))
 
 
 if __name__ == '__main__':

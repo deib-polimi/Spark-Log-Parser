@@ -44,6 +44,7 @@ class SparkParser:
         self.stagesCSVInfo = []
         self.jobsCSVInfo = []
         self.appCSVInfo = []
+        self.executorsCSVInfo = []
 
         self.stageHeaders = {
             "Stage Info" : [
@@ -101,6 +102,16 @@ class SparkParser:
             "_": [
                 "App ID",
                 "Timestamp",
+            ]
+        }
+        self.executorsHeaders = {
+            "_": [
+                "Executor ID",
+                "Timestamp"
+            ],
+            "Executor Info": [
+                "Host",
+                "Total Cores"
             ]
         }
 
@@ -175,6 +186,9 @@ class SparkParser:
                         record = self.parse(data, self.applicationHeaders)
                         appData["Completion Time"] = record["Timestamp"]
                         self.appCSVInfo.append (appData)
+                    elif event == "SparkListenerExecutorAdded":
+                        record = self.parse(data, self.executorsHeaders)
+                        self.executorsCSVInfo.append (record)
 
                 except Exception as e:
                     print ("warning: {}".format (e), file = sys.stderr)
@@ -198,14 +212,19 @@ class SparkParser:
                 "headers": self.normalizeHeaders(self.jobHeaders)
             },
             {
-                "filename" : os.path.join(self.outputDir, "stages_{}.csv".format(self.appId)),
-                "records" : self.stagesCSVInfo,
-                "headers" : self.normalizeHeaders(self.stageHeaders)
+                "filename": os.path.join(self.outputDir, "stages_{}.csv".format(self.appId)),
+                "records": self.stagesCSVInfo,
+                "headers": self.normalizeHeaders(self.stageHeaders)
             },
             {
                 "filename": os.path.join(self.outputDir, "app_{}.csv".format(self.appId)),
                 "records": self.appCSVInfo,
                 "headers": ["App ID", "Submission Time", "Completion Time"]
+            },
+            {
+                "filename": os.path.join(self.outputDir, "executors_{}.csv".format(self.appId)),
+                "records": self.executorsCSVInfo,
+                "headers": self.normalizeHeaders(self.executorsHeaders)
             }
         ]
 
