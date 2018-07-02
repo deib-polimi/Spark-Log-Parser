@@ -113,6 +113,18 @@ build_lua_file ()
     "$DIR/processing/lua_file_builder.py" "$reldir" "$app_id" "$cores"
 }
 
+find_gaps ()
+{
+    reldir="$1"
+    ordinal="$2"
+    kind="$3"
+
+    infile="$reldir/${kind}_$ordinal.csv"
+    outfile="$reldir/${kind}_gaps_$ordinal.csv"
+
+    "$DIR/processing/gaps.py" "$infile" > "$outfile"
+}
+
 process_data ()
 {
     root="$1"
@@ -144,6 +156,8 @@ process_data ()
                 mkdir -p "$newdir"
 
                 "$DIR/processing/parser.py" "$dir/$app_id" 1 "$newdir"
+                find_gaps "$newdir" 1 stages
+                find_gaps "$newdir" 1 jobs
                 build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
             fi
         fi
