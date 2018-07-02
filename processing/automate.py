@@ -271,12 +271,12 @@ class Parser:
             if namedChildren != '':
                 namedChildren = namedChildren[:-1]
 
-            targetString += '{{ name="{name}", tasks="{tasks}"'.format (name = value["name"], tasks = value["tasks"])
+            targetString += '{{name="{name}", tasks="{tasks}"'.format (name = value["name"], tasks = value["tasks"])
             timeFile = os.path.join (self.targetDirectory, "{}.txt".format (value["name"]))
             targetString += ', distr={{type="replay", params={{samples=solver.fileToArray("{filename}")}}}}'.format (filename = timeFile)
-            targetString += ', pre={{{parents}}}, post={{{children}}}}},'.format (parents = namedParents, children = namedChildren)
+            targetString += ', pre={{{parents}}}, post={{{children}}}}},\n'.format (parents = namedParents, children = namedChildren)
 
-        targetString = '{'+targetString[:-1]+'}'
+        targetString = '{\n' + targetString[:-2] + '\n}'
         targetFile = os.path.join (self.targetDirectory, "dependencies.lua")
 
         with open (targetFile, "w") as outfile:
