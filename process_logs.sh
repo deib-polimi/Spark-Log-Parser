@@ -155,10 +155,11 @@ process_data ()
                 newdir="$dir/${app_id}_csv"
                 mkdir -p "$newdir"
 
-                "$DIR/processing/parser.py" "$dir/$app_id" 1 "$newdir"
-                find_gaps "$newdir" 1 stages
-                find_gaps "$newdir" 1 jobs
-                build_lua_file "$newdir" "$app_id" "$TOTAL_CORES"
+                "$DIR/processing/parser.py" "$dir/$app_id" 1 "$newdir" && \
+                    find_gaps "$newdir" 1 stages && \
+                    find_gaps "$newdir" 1 jobs && \
+                    build_lua_file "$newdir" "$app_id" "$TOTAL_CORES" || \
+                        touch "$newdir/FAILED"
             fi
         fi
     done

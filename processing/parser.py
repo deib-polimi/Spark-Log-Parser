@@ -155,8 +155,9 @@ class SparkParser:
                         self.tasksCSVInfo.append (record)
                     elif event == "SparkListenerStageCompleted":
                         if "Failure Reason" in data["Stage Info"]:
-                            print ("error: stage {} failed"
-                                   .format (data["Stage Info"]["Stage ID"]),
+                            print ("error: stage {id} failed in '{name}'"
+                                   .format (id = data["Stage Info"]["Stage ID"],
+                                            name = self.filename),
                                    file = sys.stderr)
                             sys.exit (3)
                         else:
