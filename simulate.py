@@ -19,6 +19,7 @@ from pathlib import Path
 import argparse
 import locale
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -40,6 +41,22 @@ def parse_args (argv = None):
     args = parser.parse_args (argv)
     args.model_cores = args.model_cores or args.cores
     return args
+
+
+def parse_configuration ():
+    conf = {}
+    script = Path (__file__).resolve ()
+    config_file = script.with_name ("config.sh")
+
+    with config_file.open () as infile:
+        for line in infile:
+            tokens = shlex.split (line)
+
+            if tokens and "#" not in tokens[0]:
+                name, _, value = tokens[0].partition ("=")
+                conf[name] = value
+
+    return conf
 
 
 def prepare_model_files (args):
@@ -101,12 +118,12 @@ def prepare_model_files (args):
     return dest_lua_file
 
 
-def run_simulator (model_file):
+def run_simulator (model_file, options):
     results_file = model_file.with_suffix (".dagsim.txt")
 
     with results_file.open ("w") as outfile:
         try:
-            subprocess.run (["dagsim.sh", str (model_file)],
+            subprocess.run ([options["DAGSIM"], str (model_file)],
                             stdin = subprocess.DEVNULL,
                             encoding = locale.getpreferredencoding (False),
                             stderr = subprocess.PIPE,
@@ -118,8 +135,9 @@ def run_simulator (model_file):
 
 def main ():
     args = parse_args ()
+    options = parse_configuration ()
     dagsim_model_file = prepare_model_files (args)
-    run_simulator (dagsim_model_file)
+    run_simulator (dagsim_model_file, options)
 
 
 if __name__ == "__main__":
