@@ -15,8 +15,8 @@
 ## limitations under the License.
 
 from pathlib import Path
+from argparse import ArgumentParser
 
-import argparse
 import locale
 import re
 import shlex
@@ -26,7 +26,8 @@ import sys
 
 
 def parse_args (argv = None):
-    parser = argparse.ArgumentParser (description = "simulate dagSim model with arbitrary number of cores")
+    parser = ArgumentParser (description =
+                             "simulate dagSim model with arbitrary number of cores")
     parser.add_argument ("-c", "--model-cores",
                          help = "number of cores to build the model",
                          type = int)
@@ -59,7 +60,7 @@ def parse_configuration ():
     return conf
 
 
-def prepare_model_files (args):
+def prepare_model_files (args, options):
     base_dir = Path (args.models)
     experiment = re.compile (
         "(?P<executors>\d+)_(?P<cpus>\d+)_\d+[mMgG]_(?P<datasize>\d+)")
@@ -100,7 +101,7 @@ def prepare_model_files (args):
         shutil.copy (src, dest)
 
     lua_file_name = "{query}.lua".format (query = args.query)
-    src_lua_file = abs_model_dir / lua_file_name
+    src_lua_file = (abs_model_dir / lua_file_name).with_suffix (".lua.template")
     dest_lua_file = result_dir / lua_file_name
     timing_re = re.compile (
         'solver.fileToArray\s*\("[^"]*/(S\d+)\.txt"\)')
@@ -112,7 +113,12 @@ def prepare_model_files (args):
                 .format (path = str (result_dir))
             path_line = timing_re.sub (replacement, line)
             node_line = "Nodes = {cores};".format (cores = args.cores)
-            final_line = nodes_re.sub (node_line, path_line)
+            subbed_line = nodes_re.sub (node_line, path_line)
+            final_line = (subbed_line
+                          .replace ("@@MAXJOBS@@", options["DAGSIM_MAXJOBS"])
+                          .replace ("@@COEFF@@", options["DAGSIM_CONFINTCOEFF"])
+                          .replace ("@@NUMPERC@@", options["DAGSIM_NUMPERC"])
+                          .replace ("@@PERCSAMPLES@@", options["DAGSIM_PERCSAMPLES"]))
             outfile.write (final_line)
 
     return dest_lua_file
@@ -136,7 +142,7 @@ def run_simulator (model_file, options):
 def main ():
     args = parse_args ()
     options = parse_configuration ()
-    dagsim_model_file = prepare_model_files (args)
+    dagsim_model_file = prepare_model_files (args, options)
     run_simulator (dagsim_model_file, options)
 
 
