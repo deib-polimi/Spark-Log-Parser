@@ -140,12 +140,16 @@ def write_summary_table (args, pairings):
                     break
 
     table = result_dir / "simulations.csv"
+    has_previous_results = table.exists ()
 
-    with table.open ("w", newline = "") as outfile:
+    with table.open ("a", newline = "") as outfile:
         header = ["Query", "Datasize", "ModelCores", "SimCores",
                   "SimAvg", "SimDev", "SimLower", "SimUpper", "SimAccuracy"]
         writer = csv.DictWriter (outfile, fieldnames = header)
-        writer.writeheader ()
+
+        if not has_previous_results:
+            writer.writeheader ()
+
         writer.writerows (simulations)
 
 
