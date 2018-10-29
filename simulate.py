@@ -26,8 +26,8 @@ import sys
 
 
 def parse_args (argv = None):
-    parser = ArgumentParser (description =
-                             "simulate dagSim model with arbitrary number of cores")
+    descr = "simulate dagSim model with arbitrary number of cores"
+    parser = ArgumentParser (description = descr)
     parser.add_argument ("-c", "--model-cores",
                          help = "number of cores to build the model",
                          type = int)
@@ -67,9 +67,12 @@ def prepare_model_files (args, options):
 
     def is_needed (name):
         result = experiment.match (name)
-        cores = int (result["executors"]) * int (result["cpus"])
-        datasize = int (result["datasize"])
-        return cores == args.model_cores and datasize == args.dataset
+
+        if result:
+            cores = int (result["executors"]) * int (result["cpus"])
+            datasize = int (result["datasize"])
+
+        return result and cores == args.model_cores and datasize == args.dataset
 
     relevant = [model for model in base_dir.iterdir ()
                 if is_needed (model.name)]
