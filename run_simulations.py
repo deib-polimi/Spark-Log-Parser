@@ -14,6 +14,7 @@
 ## See the License for the specific language governing permissions and
 ## limitations under the License.
 
+import csv
 import re
 import subprocess
 import sys
@@ -92,7 +93,6 @@ def run_simulator (args, pairings):
 
     tuples = sorted (set (p for pairs in pairings.values ()
                           for p in pairs.items ()))
-    results = dict ()
 
     for core, closest in tuples:
         command = base_command[:]
@@ -110,7 +110,47 @@ def run_simulator (args, pairings):
             sys.exit (e.returncode)
 
 
+def write_summary_table (args, pairings):
+    result_dir = Path (args.results or "results")
+    partial_filename = "{}.dagsim.txt".format (args.query)
+    result_re = re.compile (
+        "(?P<query>\w+)_C(?P<cores>\d+)_M(?P<model>\d+)_D(?P<dataset>\d+)")
+    simulations = list ()
+
+    for filename in result_dir.rglob (partial_filename):
+        with filename.open () as infile:
+            for line in infile:
+                pieces = line.split ()
+
+                if pieces[0] == "0.0" and pieces[1] == "0.0":
+                    values = pieces[2:]
+                    name = filename.parent.name
+                    match = result_re.fullmatch (name)
+                    simulations.append ({
+                        "Query": match["query"],
+                        "SimCores": match["cores"],
+                        "ModelCores": match["model"],
+                        "Datasize": match["dataset"],
+                        "SimAvg": values[0],
+                        "SimDev": values[1],
+                        "SimLower": values[2],
+                        "SimUpper": values[3],
+                        "SimAccuracy": values[4]
+                    })
+                    break
+
+    table = result_dir / "simulations.csv"
+
+    with table.open ("w", newline = "") as outfile:
+        header = ["Query", "Datasize", "ModelCores", "SimCores",
+                  "SimAvg", "SimDev", "SimLower", "SimUpper", "SimAccuracy"]
+        writer = csv.DictWriter (outfile, fieldnames = header)
+        writer.writeheader ()
+        writer.writerows (simulations)
+
+
 if __name__ == "__main__":
     args = parse_arguments ()
     pairings = arrange_cases (args.cases)
     run_simulator (args, pairings)
+    write_summary_table (args, pairings)
