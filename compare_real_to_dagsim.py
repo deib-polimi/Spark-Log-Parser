@@ -37,11 +37,14 @@ def parse_dir_name (directory):
 
 
 def process_simulations (filename):
-    results = defaultdict (dict)
-
     with open (filename, newline = '') as csvfile:
         reader = csv.DictReader (csvfile)
         empirical = "Experiment" in reader.fieldnames
+
+        if empirical:
+            results = defaultdict (dict)
+        else:
+            results = defaultdict (lambda: defaultdict (dict))
 
         for row in reader:
             query = row["Query"]
@@ -50,11 +53,9 @@ def process_simulations (filename):
                 experiment = row["Experiment"]
                 results[experiment][query] = float (row["SimAvg"])
             elif not empirical:
+                model = int (row["ModelCores"])
                 key = (int (row["SimCores"]), int (row["Datasize"]))
-                results[key][query] = {
-                    "model": int (row["ModelCores"]),
-                    "simulated": float (row["SimAvg"]),
-                }
+                results[key][query][model] = float (row["SimAvg"])
 
     return results, empirical
 
@@ -114,15 +115,19 @@ def main (args):
                                             simulations_file)
 
     if empirical:
-        errors = {experiment:
-                  {query:
-                   {"measured": real,
-                    "simulated": sim_R[experiment][query],
-                    "error": (sim_R[experiment][query] - real) / real}
-                   for query, real in inner.items ()}
-                  for experiment, inner in avg_R.items ()}
+        errors = [
+            {
+                "Experiment": experiment,
+                "Query": query,
+                "Measured": real,
+                "Simulated": sim_R[experiment][query],
+                "Error[1]": (sim_R[experiment][query] - real) / real
+            }
+            for experiment, inner in avg_R.items ()
+            for query, real in inner.items ()
+        ]
     else:
-        errors = defaultdict (dict)
+        errors = list ()
         experiment_re = re.compile (
             "(?P<executors>\d+)_(?P<cpus>\d+)_\d+[mMgG]_(?P<datasize>\d+)")
 
@@ -133,31 +138,23 @@ def main (args):
 
             for query, data in sim_R[(cores, datasize)].items ():
                 real = inner[query]
-                simulated = data["simulated"]
-                errors[experiment][query] = {
-                    "measured": real,
-                    "simulated": simulated,
-                    "error": (simulated - real) / real,
-                    "model": data["model"]
-                }
+                errors.extend ({
+                    "Experiment": experiment,
+                    "Query": query,
+                    "Measured": real,
+                    "Simulated": simulated,
+                    "Error[1]": (simulated - real) / real,
+                    "ModelCores": model
+                } for model, simulated in data.items ())
 
     fields = ["Experiment", "Query", "Measured", "Simulated", "Error[1]"]
-    rows = ({"Experiment": experiment,
-             "Query": query,
-             "Error[1]": data["error"],
-             "Measured": data["measured"],
-             "Simulated": data["simulated"],
-             "ModelCores": data["model"] if "model" in data else None}
-            for experiment, inner in errors.items ()
-            for query, data in inner.items())
 
     if not empirical:
         fields.insert (2, "ModelCores")
 
-    writer = csv.DictWriter (sys.stdout, fieldnames = fields,
-                             extrasaction = "ignore")
+    writer = csv.DictWriter (sys.stdout, fieldnames = fields)
     writer.writeheader ()
-    writer.writerows (rows)
+    writer.writerows (errors)
 
 
 if __name__ == "__main__":
