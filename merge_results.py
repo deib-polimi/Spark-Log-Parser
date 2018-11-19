@@ -90,7 +90,8 @@ def parse_comparisons (filename):
             query = row["Query"]
             match = experiment.fullmatch (row["Experiment"])
             cores = int (match["executors"]) * int (match["cpus"])
-            data[query][(cores, model)] = 100 * float (row["Error[1]"])
+            datasize = int (match["datasize"])
+            data[(query, datasize)][(cores, model)] = 100 * float (row["Error[1]"])
 
     return data
 
@@ -110,16 +111,18 @@ def arrange_results (errors, pairings):
     results = list ()
 
     for case, pairs in pairings.items ():
-        for query, partials in errors.items ():
+        for metadata, partials in errors.items ():
             training = avg (abs (partials[(cores, model)])
                             for cores, model in pairs.items ()
                             if cores == model)
             test = avg (abs (partials[(cores, model)])
                         for cores, model in pairs.items ()
                         if cores != model)
+            query, datasize = metadata
             results.append ({
                 "Case": case,
                 "Query": query,
+                "Datasize": datasize,
                 "Training MAPE": training,
                 "Test MAPE": test
             })
@@ -128,7 +131,7 @@ def arrange_results (errors, pairings):
 
 
 def write_table (results):
-    fields = ["Case", "Query", "Training MAPE", "Test MAPE"]
+    fields = ["Case", "Datasize", "Query", "Training MAPE", "Test MAPE"]
     writer = csv.DictWriter (sys.stdout, fields)
     writer.writeheader ()
     writer.writerows (results)
